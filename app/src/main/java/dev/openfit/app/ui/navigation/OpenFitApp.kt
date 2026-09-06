@@ -7,8 +7,6 @@ import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Restaurant
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.SupportAgent
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -43,12 +41,23 @@ import dev.openfit.app.ui.picker.ExercisePickerScreen
 import dev.openfit.app.ui.progress.ProgressScreen
 import dev.openfit.app.ui.settings.SettingsScreen
 import dev.openfit.app.ui.summary.SummaryScreen
+import dev.openfit.app.ui.theme.OpenFitTheme
 import dev.openfit.app.ui.workout.WorkoutScreen
 
 private data class TabItem(val route: String, val label: String, val icon: @Composable () -> Unit)
 
 @Composable
 fun OpenFitApp() {
+    val container = appContainer()
+    val dynamicColor by container.settingsRepository.dynamicColor.collectAsState(initial = false)
+
+    OpenFitTheme(dynamicColor = dynamicColor) {
+        OpenFitAppContent()
+    }
+}
+
+@Composable
+private fun OpenFitAppContent() {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
@@ -113,7 +122,11 @@ fun OpenFitApp() {
 
             composable(Routes.GALLERY) {
                 val meals by macrosVm.meals.collectAsState()
-                GalleryScreen(meals = meals, onBack = { navController.popBackStack() })
+                GalleryScreen(
+                    meals = meals,
+                    onBack = { navController.popBackStack() },
+                    onDeleteMeal = macrosVm::deleteMeal
+                )
             }
 
             composable(
@@ -149,12 +162,12 @@ private fun MacrosTab(navController: NavHostController, vm: MacrosViewModel) {
     val settings by vm.macroSettings.collectAsState()
     val totals = vm.todayTotals(meals)
     MacrosScreen(
-        meals = meals,
         settings = settings,
         totals = totals,
         formatTime = vm::formatTime,
         onLogMeal = { navController.navigate(Routes.LOG_MEAL) },
-        onGallery = { navController.navigate(Routes.GALLERY) }
+        onGallery = { navController.navigate(Routes.GALLERY) },
+        onDeleteMeal = vm::deleteMeal
     )
 }
 
@@ -162,11 +175,9 @@ private fun MacrosTab(navController: NavHostController, vm: MacrosViewModel) {
 private fun AppBottomBar(currentRoute: String?, navController: NavHostController) {
     val tabs = listOf(
         TabItem(Routes.HOME, "Home", { Icon(Icons.Filled.FitnessCenter, contentDescription = null) }),
-        TabItem(Routes.COACH, "Coach", { Icon(Icons.Filled.SupportAgent, contentDescription = null) }),
         TabItem(Routes.MACROS, "Macros", { Icon(Icons.Filled.Restaurant, contentDescription = null) }),
         TabItem(Routes.HISTORY, "History", { Icon(Icons.Filled.History, contentDescription = null) }),
-        TabItem(Routes.PROGRESS, "Progress", { Icon(Icons.Filled.BarChart, contentDescription = null) }),
-        TabItem(Routes.SETTINGS, "Settings", { Icon(Icons.Filled.Settings, contentDescription = null) })
+        TabItem(Routes.PROGRESS, "Progress", { Icon(Icons.Filled.BarChart, contentDescription = null) })
     )
     NavigationBar {
         tabs.forEach { tab ->

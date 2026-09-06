@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -37,6 +38,11 @@ class ExercisePickerViewModel(
         combine(exercises.observeAll(), _query) { list, q ->
             PickerOrder.group(PickerOrder.filterLongestFirst(q, list))
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val workoutExerciseIds: StateFlow<Set<Long>> =
+        workouts.observeWorkoutExercises(workoutId)
+            .map { entries -> entries.map { it.exerciseId }.toSet() }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
 
     private val _added = MutableStateFlow(false)
     val added: StateFlow<Boolean> = _added.asStateFlow()

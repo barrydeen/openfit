@@ -1,7 +1,6 @@
 package dev.openfit.app.ui.summary
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -10,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -20,12 +20,16 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -38,6 +42,7 @@ import dev.openfit.app.domain.Stats
 import dev.openfit.app.domain.TimeFormatter
 import dev.openfit.app.domain.UnitConverter
 import dev.openfit.app.ui.appContainer
+import dev.openfit.app.ui.components.ConfirmDialog
 import dev.openfit.app.ui.components.SectionHeader
 import dev.openfit.app.ui.navigation.Routes
 
@@ -53,6 +58,7 @@ fun SummaryScreen(navController: NavHostController, workoutId: Long) {
 
     val workout by vm.workout.collectAsState()
     val unit by vm.unit.collectAsState()
+    var showDelete by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -139,20 +145,37 @@ fun SummaryScreen(navController: NavHostController, workoutId: Long) {
                 }
             }
 
-                item {
-                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        IconButton(
-                            onClick = {
-                                vm.deleteWorkout {
-                                    navController.navigate(Routes.HOME) { popUpTo(Routes.HOME) { inclusive = true } }
-                                }
-                            }
-                        ) {
-                            Icon(Icons.Filled.Delete, contentDescription = "Delete workout")
-                        }
-                    }
+            item {
+                OutlinedButton(
+                    onClick = { showDelete = true },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                ) {
+                    Icon(
+                        Icons.Filled.Delete,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("Delete workout", color = MaterialTheme.colorScheme.error)
                 }
+            }
         }
+    }
+
+    if (showDelete) {
+        ConfirmDialog(
+            title = "Delete workout?",
+            text = "“${workout?.workout?.name ?: "This workout"}” will be permanently removed, including all logged sets.",
+            onConfirm = {
+                showDelete = false
+                vm.deleteWorkout {
+                    navController.navigate(Routes.HOME) { popUpTo(Routes.HOME) { inclusive = true } }
+                }
+            },
+            onDismiss = { showDelete = false }
+        )
     }
 }
 

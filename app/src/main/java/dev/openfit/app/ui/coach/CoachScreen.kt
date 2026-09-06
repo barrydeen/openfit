@@ -9,17 +9,21 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.SupportAgent
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -27,12 +31,17 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -41,6 +50,14 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import dev.openfit.app.llm.ChatMessage
 import dev.openfit.app.ui.appContainer
+import dev.openfit.app.ui.components.ConfirmDialog
+import dev.openfit.app.ui.components.TintedIconCircle
+
+private val ExamplePrompts = listOf(
+    "What did I eat this week?",
+    "How is my deadlift progress?",
+    "Suggest tomorrow's workout"
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,6 +77,7 @@ fun CoachScreen() {
 
     val state by vm.state.collectAsState()
     val listState = rememberLazyListState()
+    var confirmReset by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.messages.size, state.isThinking) {
         val count = state.messages.size + if (state.isThinking) 1 else 0
@@ -71,7 +89,7 @@ fun CoachScreen() {
             TopAppBar(
                 title = { Text("Coach") },
                 actions = {
-                    IconButton(onClick = { vm.resetConversation() }) {
+                    IconButton(onClick = { confirmReset = true }) {
                         Icon(Icons.Filled.Delete, contentDescription = "Reset conversation")
                     }
                 },
@@ -91,7 +109,11 @@ fun CoachScreen() {
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 items(state.messages, key = { it.id }) { message ->
-                    MessageBubble(message)
+                    if (message.isSystem) {
+                        WelcomeCard(onPrompt = vm::onInputChange)
+                    } else {
+                        MessageBubble(message)
+                    }
                 }
                 if (state.isThinking) {
                     item(key = "typing") { ThinkingIndicator(state.activeTool) }
@@ -114,11 +136,83 @@ fun CoachScreen() {
                     placeholder = { Text("Ask your coach…") },
                     maxLines = 4,
                 )
-                Spacer(Modifier.padding(4.dp))
-                IconButton(onClick = { vm.send() }, enabled = state.input.isNotBlank() && !state.isThinking) {
-                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
+                Spacer(Modifier.width(8.dp))
+                val canSend = state.input.isNotBlank() && !state.isThinking
+                Surface(
+                    onClick = { vm.send() },
+                    enabled = canSend,
+                    shape = CircleShape,
+                    color = if (canSend) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.surfaceContainerHigh
+                    },
+                    contentColor = if (canSend) {
+                        MaterialTheme.colorScheme.onPrimary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.Send,
+                            contentDescription = "Send",
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
                 }
             }
+        }
+    }
+
+    if (confirmReset) {
+        ConfirmDialog(
+            title = "Reset conversation?",
+            text = "The chat history will be cleared. Your data is not affected.",
+            confirmLabel = "Reset",
+            onConfirm = {
+                vm.resetConversation()
+                confirmReset = false
+            },
+            onDismiss = { confirmReset = false }
+        )
+    }
+}
+
+@Composable
+private fun WelcomeCard(onPrompt: (String) -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.secondaryContainer, RoundedCornerShape(20.dp))
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        TintedIconCircle(
+            icon = Icons.Filled.SupportAgent,
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary
+        )
+        Spacer(Modifier.height(12.dp))
+        Text(
+            "Hi! I'm your OpenFit coach.",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSecondaryContainer
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            "Ask me about your training or nutrition — I answer from your actual data.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
+        )
+        Spacer(Modifier.height(12.dp))
+        ExamplePrompts.forEach { prompt ->
+            SuggestionChip(
+                onClick = { onPrompt(prompt) },
+                label = { Text(prompt) },
+                modifier = Modifier.padding(vertical = 2.dp)
+            )
         }
     }
 }

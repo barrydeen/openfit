@@ -3,6 +3,7 @@ package dev.openfit.app.data
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.doublePreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
@@ -30,6 +31,15 @@ class SettingsRepository(private val context: Context) {
         val GOAL_PROTEIN = doublePreferencesKey("goal_protein")
         val GOAL_CARBS = doublePreferencesKey("goal_carbs")
         val GOAL_FAT = doublePreferencesKey("goal_fat")
+        val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
+    }
+
+    val dynamicColor: Flow<Boolean> = context.dataStore.data
+        .map { prefs -> prefs[Keys.DYNAMIC_COLOR] ?: false }
+        .distinctUntilChanged()
+
+    suspend fun setDynamicColor(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.DYNAMIC_COLOR] = enabled }
     }
 
     val unit: Flow<WeightUnit> = context.dataStore.data

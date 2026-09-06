@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -57,6 +59,21 @@ fun ProgressScreen(navController: NavHostController) {
 
     Scaffold(topBar = { TopAppBar(title = { Text("Progress") }) }) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
+
+            if (exercises.isEmpty()) {
+                Column(
+                    Modifier
+                        .fillMaxSize()
+                        .padding(16.dp)
+                ) {
+                    EmptyState(
+                        title = "No exercises logged yet",
+                        subtitle = "Finish a workout and your estimated 1RM progress will be charted here.",
+                        icon = Icons.Filled.BarChart
+                    )
+                }
+                return@Scaffold
+            }
 
             SectionHeader("Select Exercise", Modifier.padding(horizontal = 16.dp, vertical = 12.dp))
             LazyRow(

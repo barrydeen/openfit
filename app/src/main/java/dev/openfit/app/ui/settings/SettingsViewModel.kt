@@ -26,6 +26,13 @@ class SettingsViewModel(
     val macroSettings: StateFlow<MacroSettings> =
         settings.macroSettings.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), MacroSettings())
 
+    val dynamicColor: StateFlow<Boolean> =
+        settings.dynamicColor.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    fun setDynamicColor(enabled: Boolean) {
+        viewModelScope.launch { settings.setDynamicColor(enabled) }
+    }
+
     fun setUnit(unit: WeightUnit) {
         viewModelScope.launch { settings.setUnit(unit) }
     }

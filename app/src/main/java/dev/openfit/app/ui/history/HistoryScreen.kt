@@ -9,10 +9,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -24,20 +30,29 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.navigation.NavHostController
+import coil.compose.AsyncImage
 import dev.openfit.app.data.macro.MealEntry
 import dev.openfit.app.domain.TimeFormatter
 import dev.openfit.app.domain.UnitConverter
 import dev.openfit.app.ui.appContainer
+import dev.openfit.app.ui.components.ConfirmDialog
 import dev.openfit.app.ui.components.EmptyState
 import dev.openfit.app.ui.components.SectionHeader
+import dev.openfit.app.ui.components.TintedIconCircle
 import dev.openfit.app.ui.navigation.Routes
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -55,6 +70,8 @@ fun HistoryScreen(navController: NavHostController) {
     val history by vm.history.collectAsState()
     val meals by vm.meals.collectAsState()
     val unit by vm.unit.collectAsState()
+    var deleteWorkoutId by remember { mutableStateOf<Long?>(null) }
+    var deleteMeal by remember { mutableStateOf<MealEntry?>(null) }
 
     Scaffold(topBar = { TopAppBar(title = { Text("History") }) }) { padding ->
         LazyColumn(
@@ -66,24 +83,27 @@ fun HistoryScreen(navController: NavHostController) {
                 item {
                     EmptyState(
                         title = "Nothing yet",
-                        subtitle = "Finish a workout or log a meal to see them here."
+                        subtitle = "Finish a workout or log a meal to see them here.",
+                        icon = Icons.Filled.History
                     )
                 }
             } else {
                 if (meals.isNotEmpty()) {
                     item { SectionHeader("Meals") }
                     items(meals, key = { "m${it.id}" }) { m ->
-                        MealCard(m, onDelete = { vm.deleteMeal(m.id) })
+                        MealCard(m, onDelete = { deleteMeal = m })
                     }
                 }
                 if (history.isNotEmpty()) {
                     item { SectionHeader("Completed Sessions") }
                     items(history, key = { "w${it.workoutId}" }) { row ->
-                        Card(onClick = { navController.navigate(Routes.summary(row.workoutId)) }) {
+                        Card {
                             Row(
                                 modifier = Modifier.fillMaxWidth().padding(16.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
+                                TintedIconCircle(icon = Icons.Filled.FitnessCenter)
+                                Spacer(Modifier.width(16.dp))
                                 Column(Modifier.weight(1f)) {
                                     Text(row.name, style = MaterialTheme.typography.titleMedium)
                                     Spacer(Modifier.height(4.dp))
@@ -95,12 +115,17 @@ fun HistoryScreen(navController: NavHostController) {
                                     Spacer(Modifier.height(4.dp))
                                     Text(
                                         "${row.exerciseCount} exercises · ${row.setCount} sets · ${UnitConverter.displayWeight(row.totalKg, unit)} ${unit.label}",
-                                        style = MaterialTheme.typography.bodyMedium,
+                                        style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
-                                IconButton(onClick = { vm.deleteWorkout(row.workoutId) }) {
-                                    Icon(Icons.Filled.Delete, contentDescription = "Delete workout")
+                                Spacer(Modifier.width(8.dp))
+                                IconButton(onClick = { deleteWorkoutId = row.workoutId }) {
+                                    Icon(
+                                        Icons.Filled.Delete,
+                                        contentDescription = "Delete workout",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
                                 }
                             }
                         }
@@ -109,6 +134,30 @@ fun HistoryScreen(navController: NavHostController) {
             }
         }
     }
+
+    deleteWorkoutId?.let { id ->
+        ConfirmDialog(
+            title = "Delete workout?",
+            text = "The workout and all its logged sets will be permanently removed.",
+            onConfirm = {
+                vm.deleteWorkout(id)
+                deleteWorkoutId = null
+            },
+            onDismiss = { deleteWorkoutId = null }
+        )
+    }
+
+    deleteMeal?.let { meal ->
+        ConfirmDialog(
+            title = "Delete meal?",
+            text = "“${meal.dish}” (${meal.calories.toInt()} kcal) will be permanently removed.",
+            onConfirm = {
+                vm.deleteMeal(meal.id)
+                deleteMeal = null
+            },
+            onDismiss = { deleteMeal = null }
+        )
+    }
 }
 
 @Composable
@@ -116,9 +165,23 @@ private fun MealCard(meal: MealEntry, onDelete: () -> Unit) {
     Card {
         Row(
             modifier = Modifier.fillMaxWidth().padding(12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
+            verticalAlignment = Alignment.CenterVertically
         ) {
+            val imageFile = if (meal.imagePath.isNotBlank()) File(meal.imagePath) else null
+            if (imageFile != null && imageFile.exists()) {
+                AsyncImage(
+                    model = imageFile,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(52.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                )
+                Spacer(Modifier.width(12.dp))
+            } else {
+                TintedIconCircle(icon = Icons.Filled.Restaurant)
+                Spacer(Modifier.width(12.dp))
+            }
             Column(Modifier.weight(1f)) {
                 Text(meal.dish, style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.height(4.dp))
@@ -127,14 +190,20 @@ private fun MealCard(meal: MealEntry, onDelete: () -> Unit) {
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    "${meal.calories.toInt()} kcal",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
-            Text(
-                "${meal.calories.toInt()} kcal",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-            )
+            Spacer(Modifier.width(8.dp))
             IconButton(onClick = onDelete) {
-                Icon(Icons.Filled.Delete, contentDescription = "Delete meal", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(
+                    Icons.Filled.Delete,
+                    contentDescription = "Delete meal",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }

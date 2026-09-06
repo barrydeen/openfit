@@ -15,14 +15,19 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
@@ -40,8 +45,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
@@ -67,7 +73,11 @@ fun ExercisePickerScreen(navController: NavHostController, workoutId: Long) {
     val mostUsed by vm.mostUsed.collectAsState()
     val grouped by vm.grouped.collectAsState()
     val added by vm.added.collectAsState()
+    val inWorkout by vm.workoutExerciseIds.collectAsState()
     var showCustom by remember { mutableStateOf(false) }
+    val searchFocus = FocusRequester()
+
+    LaunchedEffect(Unit) { searchFocus.requestFocus() }
 
     LaunchedEffect(added) {
         if (added) {
@@ -95,8 +105,16 @@ fun ExercisePickerScreen(navController: NavHostController, workoutId: Long) {
             OutlinedTextField(
                 value = query,
                 onValueChange = { vm.setQuery(it) },
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                modifier = Modifier.fillMaxWidth().padding(16.dp).focusRequester(searchFocus),
                 label = { Text("Search exercises") },
+                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                trailingIcon = {
+                    if (query.isNotEmpty()) {
+                        IconButton(onClick = { vm.setQuery("") }) {
+                            Icon(Icons.Filled.Close, contentDescription = "Clear search")
+                        }
+                    }
+                },
                 singleLine = true
             )
 
@@ -112,6 +130,13 @@ fun ExercisePickerScreen(navController: NavHostController, workoutId: Long) {
                                 items(mostUsed) { exercise ->
                                     AssistChip(
                                         onClick = { vm.addExercise(exercise.id) },
+                                        leadingIcon = {
+                                            Icon(
+                                                Icons.Filled.History,
+                                                contentDescription = null,
+                                                modifier = Modifier.padding(2.dp)
+                                            )
+                                        },
                                         label = { Text(exercise.name) }
                                     )
                                 }
@@ -130,6 +155,7 @@ fun ExercisePickerScreen(navController: NavHostController, workoutId: Long) {
                         }
                     }
                     items(group.exercises, key = { it.id }) { exercise ->
+                        val alreadyInWorkout = exercise.id in inWorkout
                         ListItem(
                             headlineContent = { Text(exercise.name) },
                             supportingContent = {
@@ -140,7 +166,19 @@ fun ExercisePickerScreen(navController: NavHostController, workoutId: Long) {
                                 )
                             },
                             trailingContent = {
-                                Icon(Icons.Filled.Add, contentDescription = "Add exercise")
+                                if (alreadyInWorkout) {
+                                    Icon(
+                                        Icons.Filled.Check,
+                                        contentDescription = "In this workout",
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                } else {
+                                    Icon(
+                                        Icons.Filled.Add,
+                                        contentDescription = "Add exercise",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             },
                             modifier = Modifier.clickable { vm.addExercise(exercise.id) }
                         )
@@ -241,15 +279,11 @@ private fun CustomExerciseDialog(
 private fun EquipmentSelector(selected: Equipment, onSelect: (Equipment) -> Unit) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Equipment.entries.forEach { eq ->
-            RetainingAssistChip(label = eq.name, selected = eq == selected, onClick = { onSelect(eq) })
+            FilterChip(
+                selected = eq == selected,
+                onClick = { onSelect(eq) },
+                label = { Text(eq.name) }
+            )
         }
     }
-}
-
-@Composable
-private fun RetainingAssistChip(label: String, selected: Boolean, onClick: () -> Unit) {
-    AssistChip(
-        onClick = onClick,
-        label = { Text(label) }
-    )
 }

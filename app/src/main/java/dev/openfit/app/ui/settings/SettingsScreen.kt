@@ -11,23 +11,27 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -42,6 +46,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
@@ -51,7 +56,9 @@ import dev.openfit.app.data.macro.MacroGoals
 import dev.openfit.app.data.macro.MacroSettings
 import dev.openfit.app.domain.WeightUnit
 import dev.openfit.app.ui.appContainer
+import dev.openfit.app.ui.components.ConfirmDialog
 import dev.openfit.app.ui.components.SectionHeader
+import dev.openfit.app.ui.components.TintedIconCircle
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -67,6 +74,7 @@ fun SettingsScreen(navController: NavHostController) {
     val unit by vm.unit.collectAsState()
     val restSeconds by vm.restSeconds.collectAsState()
     val macroSettings by vm.macroSettings.collectAsState()
+    val dynamicColor by vm.dynamicColor.collectAsState()
     val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
 
@@ -77,6 +85,8 @@ fun SettingsScreen(navController: NavHostController) {
     var goalProtein by remember { mutableStateOf(macroSettings.goals.protein.toInt().toString()) }
     var goalCarbs by remember { mutableStateOf(macroSettings.goals.carbs.toInt().toString()) }
     var goalFat by remember { mutableStateOf(macroSettings.goals.fat.toInt().toString()) }
+    var showApiKey by remember { mutableStateOf(false) }
+    var confirmImport by remember { mutableStateOf(false) }
 
     LaunchedEffect(macroSettings) {
         baseUrl = macroSettings.baseUrl
@@ -115,6 +125,32 @@ fun SettingsScreen(navController: NavHostController) {
         ) {
             item {
                 Column {
+                    SectionHeader("Appearance")
+                    Card {
+                        ListItem(
+                            headlineContent = { Text("Dynamic color") },
+                            supportingContent = {
+                                Text(
+                                    "Use Material You colors from your wallpaper (Android 12+)",
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            },
+                            leadingContent = {
+                                TintedIconCircle(icon = Icons.Filled.Palette)
+                            },
+                            trailingContent = {
+                                Switch(
+                                    checked = dynamicColor,
+                                    onCheckedChange = vm::setDynamicColor
+                                )
+                            }
+                        )
+                    }
+                }
+            }
+
+            item {
+                Column {
                     SectionHeader("Units")
                     Card {
                         Row(
@@ -138,28 +174,35 @@ fun SettingsScreen(navController: NavHostController) {
                     SectionHeader("Rest Timer")
                     Card {
                         Column(Modifier.padding(16.dp)) {
-                            Text(
-                                text = "Default rest between sets",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Spacer(Modifier.height(12.dp))
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                IconButton(onClick = { vm.setRestSeconds((restSeconds - 15).coerceAtLeast(5)) }) {
-                                    Icon(Icons.Filled.Remove, contentDescription = "Decrease rest")
-                                }
+                                Text(
+                                    text = "Default rest between sets",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.weight(1f)
+                                )
                                 Text(
                                     text = "$restSeconds s",
-                                    style = MaterialTheme.typography.titleLarge,
-                                    modifier = Modifier.weight(1f),
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.primary
                                 )
-                                IconButton(onClick = { vm.setRestSeconds((restSeconds + 15).coerceAtMost(600)) }) {
-                                    Icon(Icons.Filled.Add, contentDescription = "Increase rest")
-                                }
+                            }
+                            Spacer(Modifier.height(8.dp))
+                            Slider(
+                                value = restSeconds.toFloat(),
+                                onValueChange = { vm.setRestSeconds(it.toLong()) },
+                                valueRange = 15f..600f,
+                                steps = 39
+                            )
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("15 s", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("10 min", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     }
@@ -185,7 +228,15 @@ fun SettingsScreen(navController: NavHostController) {
                                 value = apiKey, onValueChange = { apiKey = it },
                                 label = { Text("API Token") },
                                 singleLine = true, modifier = Modifier.fillMaxWidth(),
-                                visualTransformation = PasswordVisualTransformation(),
+                                visualTransformation = if (showApiKey) VisualTransformation.None else PasswordVisualTransformation(),
+                                trailingIcon = {
+                                    IconButton(onClick = { showApiKey = !showApiKey }) {
+                                        Icon(
+                                            if (showApiKey) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                                            contentDescription = if (showApiKey) "Hide token" else "Show token"
+                                        )
+                                    }
+                                },
                             )
                             OutlinedTextField(
                                 value = model, onValueChange = { model = it },
@@ -202,7 +253,7 @@ fun SettingsScreen(navController: NavHostController) {
                             GoalRow("Carbs (g)", goalCarbs) { goalCarbs = it }
                             GoalRow("Fat (g)", goalFat) { goalFat = it }
                             Spacer(Modifier.height(4.dp))
-                            OutlinedButton(
+                            Button(
                                 onClick = {
                                     vm.saveMacroSettings(
                                         MacroSettings(
@@ -217,6 +268,7 @@ fun SettingsScreen(navController: NavHostController) {
                                             ),
                                         )
                                     )
+                                    scope.launch { snackbar.showSnackbar("Macro settings saved") }
                                 },
                                 modifier = Modifier.fillMaxWidth()
                             ) { Text("Save macro settings") }
@@ -247,7 +299,7 @@ fun SettingsScreen(navController: NavHostController) {
                             ) { Text("Export backup") }
                             Spacer(Modifier.height(8.dp))
                             OutlinedButton(
-                                onClick = { importLauncher.launch(arrayOf("application/json", "text/*")) },
+                                onClick = { confirmImport = true },
                                 modifier = Modifier.fillMaxWidth()
                             ) { Text("Import backup") }
                         }
@@ -264,6 +316,19 @@ fun SettingsScreen(navController: NavHostController) {
                 )
             }
         }
+    }
+
+    if (confirmImport) {
+        ConfirmDialog(
+            title = "Import backup?",
+            text = "Importing replaces all workouts and meals currently on this device.",
+            confirmLabel = "Import",
+            onConfirm = {
+                confirmImport = false
+                importLauncher.launch(arrayOf("application/json", "text/*"))
+            },
+            onDismiss = { confirmImport = false }
+        )
     }
 }
 

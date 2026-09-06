@@ -1,6 +1,7 @@
 package dev.openfit.app.ui.workout
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -20,14 +22,18 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.TimerOff
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -44,6 +50,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -56,8 +65,9 @@ import dev.openfit.app.domain.TimeFormatter
 import dev.openfit.app.domain.WeightUnit
 import dev.openfit.app.domain.UnitConverter
 import dev.openfit.app.ui.appContainer
+import dev.openfit.app.ui.components.ConfirmDialog
 import dev.openfit.app.ui.components.EmptyState
-import dev.openfit.app.ui.components.SectionHeader
+import dev.openfit.app.ui.components.rememberHaptics
 import dev.openfit.app.ui.navigation.Routes
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -74,7 +84,10 @@ fun WorkoutScreen(navController: NavHostController, workoutId: Long) {
     val unit by vm.unit.collectAsState()
     val restRemaining by vm.restRemaining.collectAsState()
     val restRunning by vm.restRunning.collectAsState()
+    val restTotal by vm.sessionRestSeconds.collectAsState()
     var showFinish by remember { mutableStateOf(false) }
+    var removeExerciseEntry by remember { mutableStateOf<WorkoutExerciseWithRelation?>(null) }
+    var deleteSetTarget by remember { mutableStateOf<WorkoutSetEntity?>(null) }
 
     Scaffold(
         topBar = {
@@ -93,7 +106,11 @@ fun WorkoutScreen(navController: NavHostController, workoutId: Long) {
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
             if (restRunning) {
-                RestTimerBar(remaining = restRemaining, onSkip = { vm.skipRest() })
+                RestTimerBar(
+                    remaining = restRemaining,
+                    total = restTotal.toInt(),
+                    onSkip = { vm.skipRest() }
+                )
             }
 
             LazyColumn(
@@ -107,10 +124,13 @@ fun WorkoutScreen(navController: NavHostController, workoutId: Long) {
                     item {
                         EmptyState(
                             title = "No exercises yet",
-                            subtitle = "Add an exercise to start logging your sets."
+                            subtitle = "Add an exercise to start logging your sets.",
+                            icon = Icons.Filled.FitnessCenter
                         )
                     }
-                    item { AddExerciseButton { navController.navigate(Routes.pickExercise(workoutId)) } }
+                    item {
+                        AddExerciseButton { navController.navigate(Routes.pickExercise(workoutId)) }
+                    }
                 } else {
                     items(workout!!.exercises, key = { it.entry.id }) { entry ->
                         ExerciseCard(
@@ -120,8 +140,11 @@ fun WorkoutScreen(navController: NavHostController, workoutId: Long) {
                             onComplete = { vm.completeSet(it) },
                             onUpdate = { id, wkg, reps -> vm.updateSet(id, wkg, reps) },
                             onToggleWarmup = { vm.toggleWarmup(it) },
-                            onDeleteSet = { vm.deleteSet(it) },
-                            onRemove = { vm.removeExercise(entry.entry.id) }
+                            onDeleteSet = { set ->
+                                if (set.completedAt == null) vm.deleteSet(set.id)
+                                else deleteSetTarget = set
+                            },
+                            onRemove = { removeExerciseEntry = entry }
                         )
                     }
                     item { AddExerciseButton { navController.navigate(Routes.pickExercise(workoutId)) } }
@@ -136,7 +159,7 @@ fun WorkoutScreen(navController: NavHostController, workoutId: Long) {
             title = { Text("Finish workout?") },
             text = { Text("You're about to end this session. Make sure all your sets are logged.") },
             confirmButton = {
-                TextButton(onClick = {
+                Button(onClick = {
                     showFinish = false
                     vm.finishWorkout {
                         navController.navigate(Routes.summary(workoutId)) {
@@ -150,37 +173,98 @@ fun WorkoutScreen(navController: NavHostController, workoutId: Long) {
             }
         )
     }
+
+    removeExerciseEntry?.let { entry ->
+        ConfirmDialog(
+            title = "Remove exercise?",
+            text = "“${entry.exercise?.name ?: "This exercise"}” and its logged sets will be removed from this workout.",
+            confirmLabel = "Remove",
+            onConfirm = {
+                vm.removeExercise(entry.entry.id)
+                removeExerciseEntry = null
+            },
+            onDismiss = { removeExerciseEntry = null }
+        )
+    }
+
+    deleteSetTarget?.let { set ->
+        ConfirmDialog(
+            title = "Delete set?",
+            text = "Delete this completed set (${UnitConverter.displayWeight(set.weightKg, unit)} ${unit.label} × ${set.reps})?",
+            onConfirm = {
+                vm.deleteSet(set.id)
+                deleteSetTarget = null
+            },
+            onDismiss = { deleteSetTarget = null }
+        )
+    }
 }
 
 @Composable
-private fun RestTimerBar(remaining: Int, onSkip: () -> Unit) {
+private fun RestTimerBar(remaining: Int, total: Int, onSkip: () -> Unit) {
+    val haptics = LocalHapticFeedback.current
+    val prevRemaining = remember { mutableStateOf(0) }
+    androidx.compose.runtime.LaunchedEffect(remaining) {
+        if (remaining == 0 && prevRemaining.value > 0) {
+            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+        }
+        prevRemaining.value = remaining
+    }
+
+    val fraction = if (total > 0) remaining.toFloat() / total else 0f
+    val nearEnd = remaining <= 5
+    val accent = if (nearEnd) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+
     Surface(color = MaterialTheme.colorScheme.primaryContainer) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(Icons.Filled.Schedule, contentDescription = null)
-            Spacer(Modifier.width(12.dp))
-            Text(
-                text = "Rest ${TimeFormatter.countdown(remaining)}",
-                style = MaterialTheme.typography.titleMedium
-            )
-            Spacer(Modifier.weight(1f))
-            TextButton(onClick = onSkip) {
-                Icon(Icons.Filled.TimerOff, contentDescription = null)
-                Spacer(Modifier.width(6.dp))
-                Text("Skip")
+        Column(Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Filled.Schedule,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+                Spacer(Modifier.width(12.dp))
+                Text(
+                    text = "Rest ${TimeFormatter.countdown(remaining)}",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+                Spacer(Modifier.weight(1f))
+                TextButton(
+                    onClick = onSkip,
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                ) {
+                    Icon(Icons.Filled.TimerOff, contentDescription = null)
+                    Spacer(Modifier.width(6.dp))
+                    Text("Skip")
+                }
             }
+            LinearProgressIndicator(
+                progress = { fraction.coerceIn(0f, 1f) },
+                modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp).height(4.dp),
+                color = accent,
+                trackColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.15f)
+            )
         }
     }
 }
 
 @Composable
 private fun AddExerciseButton(onClick: () -> Unit) {
-    OutlinedButton(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
+    FilledTonalButton(
+        onClick = onClick,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp)
+    ) {
         Icon(Icons.Filled.Add, contentDescription = null)
         Spacer(Modifier.width(8.dp))
-        Text("Add Exercise")
+        Text("Add Exercise", style = MaterialTheme.typography.titleMedium)
     }
 }
 
@@ -192,7 +276,7 @@ private fun ExerciseCard(
     onComplete: (Long) -> Unit,
     onUpdate: (Long, Double, Int) -> Unit,
     onToggleWarmup: (Long) -> Unit,
-    onDeleteSet: (Long) -> Unit,
+    onDeleteSet: (WorkoutSetEntity) -> Unit,
     onRemove: () -> Unit
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -201,10 +285,16 @@ private fun ExerciseCard(
                 Text(
                     text = entry.exercise?.name ?: "Exercise",
                     style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                 )
                 IconButton(onClick = onRemove) {
-                    Icon(Icons.Filled.Delete, contentDescription = "Remove exercise")
+                    Icon(
+                        Icons.Filled.Delete,
+                        contentDescription = "Remove exercise",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
             if (entry.exercise != null) {
@@ -221,19 +311,17 @@ private fun ExerciseCard(
                 if (set.completedAt == null) {
                     DraftSetRow(
                         set = set,
-                        index = index,
                         unit = unit,
                         onUpdate = onUpdate,
                         onComplete = onComplete,
-                        onDelete = onDeleteSet
+                        onDelete = { onDeleteSet(set) }
                     )
                 } else {
                     CompletedSetRow(
                         set = set,
-                        index = index,
                         unit = unit,
                         onToggleWarmup = onToggleWarmup,
-                        onDelete = onDeleteSet
+                        onDelete = { onDeleteSet(set) }
                     )
                 }
                 Spacer(Modifier.height(8.dp))
@@ -253,44 +341,67 @@ private fun ExerciseCard(
 @Composable
 private fun DraftSetRow(
     set: WorkoutSetEntity,
-    index: Int,
     unit: WeightUnit,
     onUpdate: (Long, Double, Int) -> Unit,
     onComplete: (Long) -> Unit,
-    onDelete: (Long) -> Unit
+    onDelete: () -> Unit
 ) {
     var weightText by remember(set.id) { mutableStateOf(UnitConverter.displayWeight(set.weightKg, unit)) }
     var repsText by remember(set.id) { mutableStateOf(set.reps.toString()) }
+    val haptic = rememberHaptics()
 
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
             text = "${set.position + 1}",
             style = MaterialTheme.typography.labelLarge,
-            modifier = Modifier.width(24.dp)
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.width(20.dp),
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
         NumberField(
             value = weightText,
             onValueChange = { weightText = it },
-            suffix = unit.label,
+            placeholder = unit.label,
+            keyboardType = KeyboardType.Decimal,
             modifier = Modifier.weight(1f)
         )
-        Text("×", modifier = Modifier.padding(horizontal = 6.dp))
+        Text(
+            "×",
+            modifier = Modifier.padding(horizontal = 6.dp),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
         NumberField(
             value = repsText,
             onValueChange = { repsText = it },
-            suffix = "reps",
+            placeholder = "reps",
+            keyboardType = KeyboardType.Number,
             modifier = Modifier.weight(1f)
         )
-        IconButton(onClick = {
-            val w = UnitConverter.parseWeight(weightText, unit) ?: set.weightKg
-            val r = repsText.toIntOrNull() ?: set.reps
-            onUpdate(set.id, w, r)
-            onComplete(set.id)
-        }) {
-            Icon(Icons.Filled.Check, contentDescription = "Log set", tint = MaterialTheme.colorScheme.primary)
+        Spacer(Modifier.width(8.dp))
+        Surface(
+            onClick = {
+                val w = UnitConverter.parseWeight(weightText, unit) ?: set.weightKg
+                val r = repsText.toIntOrNull() ?: set.reps
+                onUpdate(set.id, w, r)
+                onComplete(set.id)
+                haptic()
+            },
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+            modifier = Modifier.size(44.dp)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(Icons.Filled.Check, contentDescription = "Log set", modifier = Modifier.size(24.dp))
+            }
         }
-        IconButton(onClick = { onDelete(set.id) }) {
-            Icon(Icons.Filled.Close, contentDescription = "Discard set")
+        IconButton(onClick = onDelete) {
+            Icon(
+                Icons.Filled.Close,
+                contentDescription = "Discard set",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
@@ -298,39 +409,46 @@ private fun DraftSetRow(
 @Composable
 private fun CompletedSetRow(
     set: WorkoutSetEntity,
-    index: Int,
     unit: WeightUnit,
     onToggleWarmup: (Long) -> Unit,
-    onDelete: (Long) -> Unit
+    onDelete: () -> Unit
 ) {
+    val warmup = set.isWarmup
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
             text = "${set.position + 1}",
             style = MaterialTheme.typography.labelLarge,
-            modifier = Modifier.width(24.dp)
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.width(20.dp),
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
         Text(
             text = "${UnitConverter.displayWeight(set.weightKg, unit)} ${unit.label} × ${set.reps}",
             style = MaterialTheme.typography.bodyLarge,
+            color = if (warmup) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.weight(1f)
         )
-        if (set.isWarmup) {
-            Surface(
-                color = MaterialTheme.colorScheme.secondaryContainer,
-                shape = MaterialTheme.shapes.small
-            ) {
+        Surface(
+            onClick = { onToggleWarmup(set.id) },
+            shape = CircleShape,
+            color = if (warmup) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+            contentColor = if (warmup) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(34.dp)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
                 Text(
-                    text = "warmup",
-                    style = MaterialTheme.typography.labelMedium,
-                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    text = "W",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold
                 )
             }
         }
-        IconButton(onClick = { onToggleWarmup(set.id) }) {
-            Icon(Icons.Filled.Schedule, contentDescription = "Mark warmup")
-        }
-        IconButton(onClick = { onDelete(set.id) }) {
-            Icon(Icons.Filled.Delete, contentDescription = "Delete set")
+        IconButton(onClick = onDelete) {
+            Icon(
+                Icons.Filled.Delete,
+                contentDescription = "Delete set",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
@@ -349,27 +467,39 @@ private fun AddSetRow(
         mutableStateOf(if (defaultReps > 0) defaultReps.toString() else "")
     }
 
-    Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = MaterialTheme.shapes.medium) {
+    Surface(color = MaterialTheme.colorScheme.surfaceContainerHigh, shape = MaterialTheme.shapes.medium) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("+", style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.width(8.dp))
+            Icon(
+                Icons.Filled.Add,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Spacer(Modifier.width(6.dp))
             NumberField(
                 value = weightText,
                 onValueChange = { weightText = it },
-                suffix = unit.label,
+                placeholder = unit.label,
+                keyboardType = KeyboardType.Decimal,
                 modifier = Modifier.weight(1f)
             )
-            Text("×", modifier = Modifier.padding(horizontal = 6.dp))
+            Text(
+                "×",
+                modifier = Modifier.padding(horizontal = 6.dp),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             NumberField(
                 value = repsText,
                 onValueChange = { repsText = it },
-                suffix = "reps",
+                placeholder = "reps",
+                keyboardType = KeyboardType.Number,
                 modifier = Modifier.weight(1f)
             )
-            TextButton(onClick = {
+            Spacer(Modifier.width(8.dp))
+            FilledTonalButton(onClick = {
                 val w = UnitConverter.parseWeight(weightText, unit) ?: defaultWeightKg
                 val r = repsText.toIntOrNull() ?: continueWithReps(defaultReps)
                 onAdd(w, r)
@@ -384,16 +514,17 @@ private fun continueWithReps(reps: Int): Int = if (reps > 0) reps else 10
 private fun NumberField(
     value: String,
     onValueChange: (String) -> Unit,
-    suffix: String,
+    placeholder: String,
+    keyboardType: KeyboardType,
     modifier: Modifier = Modifier
 ) {
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         modifier = modifier,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
         singleLine = true,
         textStyle = MaterialTheme.typography.bodyLarge,
-        label = { Text(suffix, style = MaterialTheme.typography.labelSmall) }
+        placeholder = { Text(placeholder, style = MaterialTheme.typography.bodyMedium) }
     )
 }

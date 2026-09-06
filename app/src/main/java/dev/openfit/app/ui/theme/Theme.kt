@@ -19,14 +19,30 @@ private val LightColors = lightColorScheme(
     onSecondary = LightOnSecondary,
     secondaryContainer = LightSecondaryContainer,
     onSecondaryContainer = LightOnSecondaryContainer,
+    tertiary = LightTertiary,
+    onTertiary = LightOnTertiary,
+    tertiaryContainer = LightTertiaryContainer,
+    onTertiaryContainer = LightOnTertiaryContainer,
     background = LightBackground,
     onBackground = LightOnBackground,
     surface = LightSurface,
     onSurface = LightOnSurface,
     surfaceVariant = LightSurfaceVariant,
     onSurfaceVariant = LightOnSurfaceVariant,
+    surfaceContainerLowest = LightSurfaceContainerLowest,
+    surfaceContainerLow = LightSurfaceContainerLow,
+    surfaceContainer = LightSurfaceContainer,
+    surfaceContainerHigh = LightSurfaceContainerHigh,
+    surfaceContainerHighest = LightSurfaceContainerHighest,
     outline = LightOutline,
-    error = LightError
+    outlineVariant = LightOutlineVariant,
+    error = LightError,
+    onError = LightOnError,
+    errorContainer = LightErrorContainer,
+    onErrorContainer = LightOnErrorContainer,
+    inverseSurface = LightInverseSurface,
+    inverseOnSurface = LightInverseOnSurface,
+    scrim = LightScrim
 )
 
 private val DarkColors = darkColorScheme(
@@ -38,20 +54,36 @@ private val DarkColors = darkColorScheme(
     onSecondary = DarkOnSecondary,
     secondaryContainer = DarkSecondaryContainer,
     onSecondaryContainer = DarkOnSecondaryContainer,
+    tertiary = DarkTertiary,
+    onTertiary = DarkOnTertiary,
+    tertiaryContainer = DarkTertiaryContainer,
+    onTertiaryContainer = DarkOnTertiaryContainer,
     background = DarkBackground,
     onBackground = DarkOnBackground,
     surface = DarkSurface,
     onSurface = DarkOnSurface,
     surfaceVariant = DarkSurfaceVariant,
     onSurfaceVariant = DarkOnSurfaceVariant,
+    surfaceContainerLowest = DarkSurfaceContainerLowest,
+    surfaceContainerLow = DarkSurfaceContainerLow,
+    surfaceContainer = DarkSurfaceContainer,
+    surfaceContainerHigh = DarkSurfaceContainerHigh,
+    surfaceContainerHighest = DarkSurfaceContainerHighest,
     outline = DarkOutline,
-    error = DarkError
+    outlineVariant = DarkOutlineVariant,
+    error = DarkError,
+    onError = DarkOnError,
+    errorContainer = DarkErrorContainer,
+    onErrorContainer = DarkOnErrorContainer,
+    inverseSurface = DarkInverseSurface,
+    inverseOnSurface = DarkInverseOnSurface,
+    scrim = DarkScrim
 )
 
 @Composable
 fun OpenFitTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
