@@ -28,7 +28,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -160,14 +159,29 @@ fun HomeScreen(navController: NavHostController) {
     }
 
     if (showNewWorkout) {
-        NewWorkoutDialog(
-            onConfirm = { name ->
-                vm.startWorkout(name)
+        ShowNewWorkoutConfirm(
+            onConfirm = {
+                vm.startWorkout()
                 showNewWorkout = false
             },
             onDismiss = { showNewWorkout = false }
         )
     }
+}
+
+@Composable
+private fun ShowNewWorkoutConfirm(onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("New Workout") },
+        text = { Text("Start a new workout session now?") },
+        confirmButton = {
+            Button(onClick = onConfirm) { Text("Start") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
 }
 
 @Composable
@@ -298,28 +312,4 @@ private fun SessionCard(
             }
         }
     }
-}
-
-@Composable
-private fun NewWorkoutDialog(onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
-    var name by remember { mutableStateOf("") }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("New Workout") },
-        text = {
-            OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
-                label = { Text("Workout name") },
-                placeholder = { Text("e.g. Push Day") },
-                singleLine = true
-            )
-        },
-        confirmButton = {
-            TextButton(onClick = { onConfirm(name) }) { Text("Start") }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
-        }
-    )
 }
