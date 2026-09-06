@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
@@ -8,17 +9,37 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+val keystoreProperties = Properties().apply {
+    val file = rootProject.file("keystore.properties")
+    if (file.exists()) {
+        file.inputStream().use { load(it) }
+    }
+}
+
+val hasReleaseSigning = keystoreProperties.getProperty("storeFile") != null
+
 android {
-    namespace = "dev.openlift.app"
+    namespace = "dev.openfit.app"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "dev.openlift.app"
+        applicationId = "dev.openfit.app"
         minSdk = 26
         targetSdk = 35
         versionCode = 1
         versionName = "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
     }
 
     buildTypes {
@@ -29,6 +50,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
         debug {
             isMinifyEnabled = false
@@ -85,6 +109,9 @@ dependencies {
     implementation(libs.vico.core)
     implementation(libs.vico.compose)
     implementation(libs.vico.compose.m3)
+
+    implementation(libs.coil.compose)
+    implementation(libs.okhttp)
 
     testImplementation(libs.junit)
     testImplementation(libs.androidx.test.core)

@@ -19,5 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "OpenLift"
+rootProject.name = "OpenFit"
 include(":app")
