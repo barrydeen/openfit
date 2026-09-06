@@ -1,0 +1,13 @@
+*.log
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
+.kotlin/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# local release signing keystore
+openlift-release.jks
