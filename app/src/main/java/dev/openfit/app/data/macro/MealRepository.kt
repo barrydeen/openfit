@@ -10,6 +10,8 @@ class MealRepository(private val database: MacroDatabase) {
 
     fun between(start: Long, end: Long): Flow<List<MealEntry>> = dao.between(start, end)
 
+    suspend fun betweenOnce(start: Long, end: Long): List<MealEntry> = dao.getBetween(start, end)
+
     suspend fun add(entry: MealEntry): Long = dao.insert(entry)
 
     suspend fun delete(id: Long) = dao.delete(id)

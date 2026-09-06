@@ -26,6 +26,9 @@ interface MacroDao {
     @Query("SELECT * FROM meals WHERE timestamp BETWEEN :start AND :end ORDER BY timestamp DESC")
     fun between(start: Long, end: Long): Flow<List<MealEntry>>
 
+    @Query("SELECT * FROM meals WHERE timestamp BETWEEN :start AND :end ORDER BY timestamp DESC")
+    suspend fun getBetween(start: Long, end: Long): List<MealEntry>
+
     @Query("SELECT * FROM meals ORDER BY timestamp DESC")
     suspend fun getAll(): List<MealEntry>
 

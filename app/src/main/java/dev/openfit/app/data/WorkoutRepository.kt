@@ -21,6 +21,20 @@ class WorkoutRepository(
 
     fun observeActiveWorkout(): Flow<WorkoutEntity?> = dao.observeActiveWorkout()
 
+    suspend fun activeWorkout(): WorkoutEntity? = dao.activeWorkout()
+
+    suspend fun workoutById(id: Long): WorkoutEntity? = dao.byId(id)
+
+    suspend fun exercisesOf(workoutId: Long): List<WorkoutExerciseEntity> = dao.workoutExercises(workoutId)
+
+    /** Adds an exercise to a workout without seeding placeholder sets (used for coach-written sets). */
+    suspend fun addExerciseEntry(workoutId: Long, exerciseId: Long): Long {
+        val position = (dao.maxExercisePosition(workoutId) ?: -1) + 1
+        return dao.insertWorkoutExercise(
+            WorkoutExerciseEntity(workoutId = workoutId, exerciseId = exerciseId, position = position)
+        )
+    }
+
     fun observeHistory(): Flow<List<WorkoutEntity>> = dao.observeHistory()
 
     fun observeHistorySummaries(): Flow<List<dev.openfit.app.data.local.entity.WorkoutSummaryRow>> =
@@ -151,4 +165,21 @@ class WorkoutRepository(
 
     suspend fun setsExerciseHistory(exerciseId: Long): List<SetPoint> =
         dao.setsForExerciseHistory(exerciseId)
+
+    /** Finished workouts whose [startedAt] falls in [start, end], with full exercise/set detail. */
+    suspend fun finishedBetween(start: Long, end: Long): List<WorkoutWithExercises> =
+        dao.finishedBetween(start, end).mapNotNull { workout -> workoutDetail(workout.id) }
+
+    /** Fetches a single workout with its exercises and sets resolved. */
+    suspend fun workoutDetail(id: Long): WorkoutWithExercises? {
+        val workout = dao.byId(id) ?: return null
+        val exercises = dao.workoutExercises(id).map { entry ->
+            WorkoutExerciseWithRelation(
+                entry = entry,
+                exercise = exerciseDao.getById(entry.exerciseId),
+                sets = dao.setsFor(entry.id),
+            )
+        }
+        return WorkoutWithExercises(workout, exercises)
+    }
 }

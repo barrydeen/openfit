@@ -1,0 +1,201 @@
+package dev.openfit.app.ui.coach
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import dev.openfit.app.llm.ChatMessage
+import dev.openfit.app.ui.appContainer
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CoachScreen() {
+    val container = appContainer()
+    val vm: CoachViewModel = viewModel(
+        factory = viewModelFactory {
+            initializer {
+                CoachViewModel(
+                    settings = container.settingsRepository,
+                    tools = container.coachTools,
+                    makeClient = container::chatClient,
+                )
+            }
+        }
+    )
+
+    val state by vm.state.collectAsState()
+    val listState = rememberLazyListState()
+
+    LaunchedEffect(state.messages.size, state.isThinking) {
+        val count = state.messages.size + if (state.isThinking) 1 else 0
+        if (count > 0) listState.animateScrollToItem(count - 1)
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Coach") },
+                actions = {
+                    IconButton(onClick = { vm.resetConversation() }) {
+                        Icon(Icons.Filled.Delete, contentDescription = "Reset conversation")
+                    }
+                },
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .imePadding()
+        ) {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                items(state.messages, key = { it.id }) { message ->
+                    MessageBubble(message)
+                }
+                if (state.isThinking) {
+                    item(key = "typing") { ThinkingIndicator(state.activeTool) }
+                }
+                state.error?.let { error ->
+                    item(key = "error") { ErrorBanner(error, onDismiss = vm::clearError) }
+                }
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                OutlinedTextField(
+                    value = state.input,
+                    onValueChange = vm::onInputChange,
+                    modifier = Modifier.weight(1f),
+                    placeholder = { Text("Ask your coach…") },
+                    maxLines = 4,
+                )
+                Spacer(Modifier.padding(4.dp))
+                IconButton(onClick = { vm.send() }, enabled = state.input.isNotBlank() && !state.isThinking) {
+                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MessageBubble(message: CoachUiMessage) {
+    val isUser = message.role == ChatMessage.USER
+    val containerColor = if (isUser) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant
+    }
+    val textColor = if (isUser) {
+        MaterialTheme.colorScheme.onPrimary
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = if (isUser) 48.dp else 16.dp),
+        contentAlignment = if (isUser) Alignment.CenterEnd else Alignment.CenterStart,
+    ) {
+        Column(
+            modifier = Modifier
+                .widthIn(max = 320.dp)
+                .background(
+                    color = containerColor,
+                    shape = RoundedCornerShape(
+                        topStart = 16.dp,
+                        topEnd = 16.dp,
+                        bottomStart = if (isUser) 16.dp else 4.dp,
+                        bottomEnd = if (isUser) 4.dp else 16.dp,
+                    ),
+                )
+                .padding(horizontal = 14.dp, vertical = 10.dp)
+        ) {
+            Text(text = message.text, color = textColor)
+        }
+    }
+}
+
+@Composable
+private fun ThinkingIndicator(activeTool: String?) {
+    Row(
+        modifier = Modifier
+            .padding(horizontal = 16.dp)
+            .widthIn(max = 320.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        CircularProgressIndicator(modifier = Modifier.padding(2.dp).size(18.dp), strokeWidth = 2.dp)
+        Text(
+            text = if (activeTool != null) "Checking your data…" else "Thinking…",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun ErrorBanner(message: String, onDismiss: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.errorContainer, RoundedCornerShape(12.dp))
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = message,
+            modifier = Modifier.weight(1f),
+            color = MaterialTheme.colorScheme.onErrorContainer,
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        IconButton(onClick = onDismiss) {
+            Icon(Icons.Filled.Delete, contentDescription = "Dismiss")
+        }
+    }
+}

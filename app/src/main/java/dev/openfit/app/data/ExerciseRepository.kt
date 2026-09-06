@@ -15,6 +15,8 @@ class ExerciseRepository(private val dao: ExerciseDao) {
 
     suspend fun getById(id: Long): ExerciseEntity? = dao.getById(id)
 
+    suspend fun getByName(name: String): ExerciseEntity? = dao.getByName(name)
+
     suspend fun usageCount(id: Long): Int = dao.usageCount(id)
 
     suspend fun createCustom(name: String, muscleGroup: String, equipment: Equipment): Long {

@@ -2,6 +2,7 @@ package dev.openfit.app.ui.navigation
 
 object Routes {
     const val HOME = "home"
+    const val COACH = "coach"
     const val MACROS = "macros"
     const val HISTORY = "history"
     const val PROGRESS = "progress"
@@ -17,5 +18,5 @@ object Routes {
     fun pickExercise(workoutId: Long) = "pick_exercise?workoutId=$workoutId"
     fun summary(workoutId: Long) = "summary/$workoutId"
 
-    val tabRoutes = setOf(HOME, MACROS, HISTORY, PROGRESS, SETTINGS)
+    val tabRoutes = setOf(HOME, COACH, MACROS, HISTORY, PROGRESS, SETTINGS)
 }

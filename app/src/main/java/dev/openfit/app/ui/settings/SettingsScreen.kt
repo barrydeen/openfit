@@ -257,7 +257,7 @@ fun SettingsScreen(navController: NavHostController) {
 
             item {
                 Text(
-                    text = "OpenFit v0.1.0 · MIT · Open source, no tracking, no ads.",
+                    text = "OpenFit v0.2.0 · MIT · Open source, no tracking, no ads.",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp)

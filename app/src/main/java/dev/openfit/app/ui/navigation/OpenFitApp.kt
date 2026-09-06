@@ -8,6 +8,7 @@ import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.SupportAgent
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -30,6 +31,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import dev.openfit.app.ui.appContainer
+import dev.openfit.app.ui.coach.CoachScreen
 import dev.openfit.app.ui.history.HistoryScreen
 import dev.openfit.app.ui.home.HomeScreen
 import dev.openfit.app.ui.macros.CaptureScreen
@@ -73,6 +75,7 @@ fun OpenFitApp() {
             modifier = Modifier.padding(padding)
         ) {
             composable(Routes.HOME) { HomeScreen(navController) }
+            composable(Routes.COACH) { CoachScreen() }
             composable(Routes.MACROS) { MacrosTab(navController, macrosVm) }
             composable(Routes.HISTORY) { HistoryScreen(navController) }
             composable(Routes.PROGRESS) { ProgressScreen(navController) }
@@ -159,6 +162,7 @@ private fun MacrosTab(navController: NavHostController, vm: MacrosViewModel) {
 private fun AppBottomBar(currentRoute: String?, navController: NavHostController) {
     val tabs = listOf(
         TabItem(Routes.HOME, "Home", { Icon(Icons.Filled.FitnessCenter, contentDescription = null) }),
+        TabItem(Routes.COACH, "Coach", { Icon(Icons.Filled.SupportAgent, contentDescription = null) }),
         TabItem(Routes.MACROS, "Macros", { Icon(Icons.Filled.Restaurant, contentDescription = null) }),
         TabItem(Routes.HISTORY, "History", { Icon(Icons.Filled.History, contentDescription = null) }),
         TabItem(Routes.PROGRESS, "Progress", { Icon(Icons.Filled.BarChart, contentDescription = null) }),

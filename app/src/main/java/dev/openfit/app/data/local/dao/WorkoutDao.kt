@@ -30,7 +30,10 @@ interface WorkoutDao {
     suspend fun activeWorkout(): WorkoutEntity?
 
     @Query("SELECT * FROM workouts WHERE ended_at IS NOT NULL ORDER BY started_at DESC")
-    fun observeHistory(): Flow<List<WorkoutEntity>>    @Query("SELECT * FROM workouts WHERE id = :id")
+    fun observeHistory(): Flow<List<WorkoutEntity>>
+
+    @Query("SELECT * FROM workouts WHERE ended_at IS NOT NULL AND started_at BETWEEN :start AND :end ORDER BY started_at DESC")
+    suspend fun finishedBetween(start: Long, end: Long): List<WorkoutEntity>    @Query("SELECT * FROM workouts WHERE id = :id")
     suspend fun byId(id: Long): WorkoutEntity?
 
     @Query("SELECT * FROM workouts WHERE id = :id")

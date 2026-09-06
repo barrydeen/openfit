@@ -25,6 +25,9 @@ interface ExerciseDao {
     @Query("SELECT * FROM exercises WHERE id = :id")
     suspend fun getById(id: Long): ExerciseEntity?
 
+    @Query("SELECT * FROM exercises WHERE name = :name LIMIT 1")
+    suspend fun getByName(name: String): ExerciseEntity?
+
     @Query("SELECT * FROM exercises WHERE id = :id")
     fun observeById(id: Long): Flow<ExerciseEntity?>
 
