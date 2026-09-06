@@ -136,7 +136,7 @@ fun WorkoutScreen(navController: NavHostController, workoutId: Long) {
                         ExerciseCard(
                             entry = entry,
                             unit = unit,
-                            onAddDraft = { weightKg, reps, warmup -> vm.addDraftSet(entry.entry.id, weightKg, reps, warmup) },
+                            onAddDraft = { weightKg, reps, warmup -> vm.addSet(entry.entry.id, weightKg, reps, warmup) },
                             onComplete = { vm.completeSet(it) },
                             onUpdate = { id, wkg, reps -> vm.updateSet(id, wkg, reps) },
                             onToggleWarmup = { vm.toggleWarmup(it) },

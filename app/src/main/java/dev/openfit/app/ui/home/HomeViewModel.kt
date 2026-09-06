@@ -31,9 +31,10 @@ class HomeViewModel(
     private val _launchedWorkoutId = MutableStateFlow<Long?>(null)
     val launchedWorkoutId: StateFlow<Long?> = _launchedWorkoutId.asStateFlow()
 
-    fun startWorkout(name: String) {
+    fun startWorkout() {
+        val defaultName = "Workout · " + java.text.SimpleDateFormat("MMM d").format(java.util.Date())
         viewModelScope.launch {
-            _launchedWorkoutId.value = workouts.createWorkout(name)
+            _launchedWorkoutId.value = workouts.createWorkout(defaultName)
         }
     }
 
