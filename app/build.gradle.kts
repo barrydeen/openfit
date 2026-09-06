@@ -18,6 +18,16 @@ val keystoreProperties = Properties().apply {
 
 val hasReleaseSigning = keystoreProperties.getProperty("storeFile") != null
 
+val llmProperties = Properties().apply {
+    val file = rootProject.file("llm.properties")
+    if (file.exists()) {
+        file.inputStream().use { load(it) }
+    }
+}
+val llmBaseUrl = llmProperties.getProperty("llm.baseUrl") ?: ""
+val llmApiKey = llmProperties.getProperty("llm.apiKey") ?: ""
+val llmModel = llmProperties.getProperty("llm.model") ?: ""
+
 android {
     namespace = "dev.openfit.app"
     compileSdk = 35
@@ -26,9 +36,13 @@ android {
         applicationId = "dev.openfit.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 3
-        versionName = "0.2.1"
+        versionCode = 4
+        versionName = "0.2.2"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField("String", "LLM_BASE_URL", "\"\"")
+        buildConfigField("String", "LLM_API_KEY", "\"\"")
+        buildConfigField("String", "LLM_MODEL", "\"\"")
     }
 
     signingConfigs {
@@ -56,6 +70,9 @@ android {
         }
         debug {
             isMinifyEnabled = false
+            buildConfigField("String", "LLM_BASE_URL", "\"$llmBaseUrl\"")
+            buildConfigField("String", "LLM_API_KEY", "\"$llmApiKey\"")
+            buildConfigField("String", "LLM_MODEL", "\"$llmModel\"")
         }
     }
 
@@ -65,6 +82,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     packaging {
         resources {

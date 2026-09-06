@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import dev.openfit.app.BuildConfig
 import dev.openfit.app.data.macro.MacroGoals
 import dev.openfit.app.data.macro.MacroSettings
 import dev.openfit.app.domain.WeightUnit
@@ -65,9 +66,9 @@ class SettingsRepository(private val context: Context) {
     val macroSettings: Flow<MacroSettings> = context.dataStore.data
         .map { prefs ->
             MacroSettings(
-                baseUrl = prefs[Keys.BASE_URL] ?: MacroSettings().baseUrl,
-                apiKey = prefs[Keys.API_KEY] ?: "",
-                model = prefs[Keys.MODEL] ?: MacroSettings().model,
+                baseUrl = prefs[Keys.BASE_URL] ?: BuildConfig.LLM_BASE_URL.ifEmpty { MacroSettings().baseUrl },
+                apiKey = prefs[Keys.API_KEY] ?: BuildConfig.LLM_API_KEY,
+                model = prefs[Keys.MODEL] ?: BuildConfig.LLM_MODEL.ifEmpty { MacroSettings().model },
                 goals = MacroGoals(
                     calories = prefs[Keys.GOAL_CAL] ?: MacroGoals.DEFAULT.calories,
                     protein = prefs[Keys.GOAL_PROTEIN] ?: MacroGoals.DEFAULT.protein,

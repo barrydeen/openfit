@@ -12,3 +12,6 @@ captures/
 # local release signing keystore
 openlift-release.jks
 keystore.properties
+
+# local LLM dev config (endpoint / model / api key) - never commit
+llm.properties

@@ -30,6 +30,7 @@ open class ChatClient(
         ignoreUnknownKeys = true
         isLenient = true
         explicitNulls = false
+        encodeDefaults = true
     }
 
     open suspend fun chat(messages: List<ChatMessage>, tools: List<ToolSpec>): ChatResult =
