@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
@@ -31,6 +32,21 @@ class ProgressViewModel(
     val exercises: StateFlow<List<ExerciseEntity>> =
         exercisesRepo.observeAll().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    private val _query = MutableStateFlow("")
+    val query: StateFlow<String> = _query.asStateFlow()
+
+    val filteredExercises: StateFlow<List<ExerciseEntity>> =
+        combine(exercises, _query) { list, q ->
+            val term = q.trim()
+            if (term.isBlank()) list
+            else {
+                list.filter {
+                    it.name.contains(term, ignoreCase = true) ||
+                        it.muscleGroup.contains(term, ignoreCase = true)
+                }
+            }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     private val _selectedId = MutableStateFlow<Long?>(null)
     val selectedId: StateFlow<Long?> = _selectedId.asStateFlow()
 
@@ -41,6 +57,10 @@ class ProgressViewModel(
 
     fun select(id: Long) {
         _selectedId.value = id
+    }
+
+    fun setQuery(q: String) {
+        _query.value = q
     }
 
     fun clearSelection() {
