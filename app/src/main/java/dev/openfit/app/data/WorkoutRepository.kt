@@ -170,6 +170,10 @@ class WorkoutRepository(
     suspend fun finishedBetween(start: Long, end: Long): List<WorkoutWithExercises> =
         dao.finishedBetween(start, end).mapNotNull { workout -> workoutDetail(workout.id) }
 
+    /** The [limit] most recently finished workouts, with full exercise/set detail. */
+    suspend fun recentFinishedWorkouts(limit: Int): List<WorkoutWithExercises> =
+        dao.recentFinished(limit).mapNotNull { workout -> workoutDetail(workout.id) }
+
     /** Fetches a single workout with its exercises and sets resolved. */
     suspend fun workoutDetail(id: Long): WorkoutWithExercises? {
         val workout = dao.byId(id) ?: return null

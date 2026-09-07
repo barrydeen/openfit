@@ -6,6 +6,7 @@ import dev.openfit.app.coach.CoachTool
 import dev.openfit.app.coach.ExerciseProgressTool
 import dev.openfit.app.coach.LogMealTool
 import dev.openfit.app.coach.NutritionTool
+import dev.openfit.app.coach.PostWorkoutCoach
 import dev.openfit.app.coach.StartWorkoutTool
 import dev.openfit.app.coach.WorkoutTool
 import dev.openfit.app.data.BackupManager
@@ -53,6 +54,8 @@ class AppContainer(context: Context) {
 
     fun chatClient(settings: MacroSettings): ChatClient =
         ChatClient(baseUrl = settings.baseUrl, apiKey = settings.apiKey, model = settings.model)
+
+    val postWorkoutCoach = PostWorkoutCoach(workoutRepository, settingsRepository, ::chatClient)
 
     init {
         ExerciseSeeder(applicationScope, appContext, database).seedIfNeeded()

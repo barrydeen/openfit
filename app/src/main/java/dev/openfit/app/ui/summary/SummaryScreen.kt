@@ -9,19 +9,23 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.TipsAndUpdates
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -52,12 +56,21 @@ fun SummaryScreen(navController: NavHostController, workoutId: Long) {
     val container = appContainer()
     val vm: SummaryViewModel = viewModel(
         factory = viewModelFactory {
-            initializer { SummaryViewModel(workoutId, container.workoutRepository, container.settingsRepository) }
+            initializer {
+                SummaryViewModel(
+                    workoutId,
+                    container.workoutRepository,
+                    container.settingsRepository,
+                    container.postWorkoutCoach,
+                )
+            }
         }
     )
 
     val workout by vm.workout.collectAsState()
     val unit by vm.unit.collectAsState()
+    val coachFeedback by vm.coachFeedback.collectAsState()
+    val coachLoading by vm.coachLoading.collectAsState()
     var showDelete by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -115,6 +128,12 @@ fun SummaryScreen(navController: NavHostController, workoutId: Long) {
                         value = "${UnitConverter.displayWeight(e1rm, unit)} ${unit.label}",
                         modifier = Modifier.weight(1f)
                     )
+                }
+            }
+
+            if (coachLoading || coachFeedback != null) {
+                item {
+                    CoachFeedbackCard(loading = coachLoading, text = coachFeedback)
                 }
             }
 
@@ -223,6 +242,43 @@ private fun ExerciseSummaryCard(
                     text = setsText,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CoachFeedbackCard(loading: Boolean, text: String?) {
+    Surface(
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        shape = MaterialTheme.shapes.large
+    ) {
+        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.Top) {
+            Icon(
+                Icons.Filled.TipsAndUpdates,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+            Spacer(Modifier.width(12.dp))
+            if (loading) {
+                Column {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "Asking your coach for some tips…",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                }
+            } else {
+                Text(
+                    text = text ?: "",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
                 )
             }
         }
