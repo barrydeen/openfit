@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.doublePreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -33,6 +34,8 @@ class SettingsRepository(private val context: Context) {
         val GOAL_CARBS = doublePreferencesKey("goal_carbs")
         val GOAL_FAT = doublePreferencesKey("goal_fat")
         val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
+        val COACH_ENABLED = booleanPreferencesKey("coach_enabled")
+        val COACH_TIME_MINUTES = intPreferencesKey("coach_time_minutes")
     }
 
     val dynamicColor: Flow<Boolean> = context.dataStore.data
@@ -41,6 +44,23 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setDynamicColor(enabled: Boolean) {
         context.dataStore.edit { it[Keys.DYNAMIC_COLOR] = enabled }
+    }
+
+    val coachEnabled: Flow<Boolean> = context.dataStore.data
+        .map { prefs -> prefs[Keys.COACH_ENABLED] ?: false }
+        .distinctUntilChanged()
+
+    /** Preferred daily delivery time, minutes since midnight (default 18:00). */
+    val coachTimeMinutes: Flow<Int> = context.dataStore.data
+        .map { prefs -> prefs[Keys.COACH_TIME_MINUTES] ?: DEFAULT_COACH_TIME_MINUTES }
+        .distinctUntilChanged()
+
+    suspend fun setCoachEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.COACH_ENABLED] = enabled }
+    }
+
+    suspend fun setCoachTimeMinutes(minutes: Int) {
+        context.dataStore.edit { it[Keys.COACH_TIME_MINUTES] = minutes.coerceIn(0, 24 * 60 - 1) }
     }
 
     val unit: Flow<WeightUnit> = context.dataStore.data
@@ -95,5 +115,6 @@ class SettingsRepository(private val context: Context) {
     companion object {
         const val DEFAULT_REST_SECONDS = 120L
         const val DEFAULT_EXPRESS_REST = 60L
+        const val DEFAULT_COACH_TIME_MINUTES = 18 * 60
     }
 }

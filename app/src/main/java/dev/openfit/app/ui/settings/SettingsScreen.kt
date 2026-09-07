@@ -1,7 +1,11 @@
 package dev.openfit.app.ui.settings
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -15,8 +19,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.SelfImprovement
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -33,7 +39,10 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -44,10 +53,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -67,7 +78,13 @@ fun SettingsScreen(navController: NavHostController) {
     val container = appContainer()
     val vm: SettingsViewModel = viewModel(
         factory = viewModelFactory {
-            initializer { SettingsViewModel(container.settingsRepository, container.backupManager) }
+            initializer {
+                SettingsViewModel(
+                    container.settingsRepository,
+                    container.backupManager,
+                    container.dailyCoachScheduler,
+                )
+            }
         }
     )
 
@@ -75,6 +92,9 @@ fun SettingsScreen(navController: NavHostController) {
     val restSeconds by vm.restSeconds.collectAsState()
     val macroSettings by vm.macroSettings.collectAsState()
     val dynamicColor by vm.dynamicColor.collectAsState()
+    val coachEnabled by vm.coachEnabled.collectAsState()
+    val coachTimeMinutes by vm.coachTimeMinutes.collectAsState()
+    var showCoachTimePicker by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
 
@@ -111,6 +131,28 @@ fun SettingsScreen(navController: NavHostController) {
     ) { uri ->
         if (uri != null) {
             vm.import(uri) { ok, message -> scope.launch { snackbar.showSnackbar(message) } }
+        }
+    }
+
+    val context = LocalContext.current
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            vm.setCoachEnabled(true)
+        } else {
+            scope.launch { snackbar.showSnackbar("Allow notifications to receive daily coach messages") }
+        }
+    }
+
+    fun enableCoach() {
+        val needsPermission = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        if (needsPermission) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            vm.setCoachEnabled(true)
         }
     }
 
@@ -204,6 +246,69 @@ fun SettingsScreen(navController: NavHostController) {
                                 Text("15 s", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Text("10 min", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
+                        }
+                    }
+                }
+            }
+
+            item {
+                Column {
+                    SectionHeader("Daily Coach")
+                    Card {
+                        Column {
+                            ListItem(
+                                headlineContent = { Text("Daily coach notification") },
+                                supportingContent = {
+                                    Text(
+                                        "One message a day from your AI coach, based on your last 7 days of " +
+                                            "meals and workouts (rest day, get back to the gym, back on track). " +
+                                            "Scheduled on-device with WorkManager - no Google services.",
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                },
+                                leadingContent = {
+                                    TintedIconCircle(icon = Icons.Filled.SelfImprovement)
+                                },
+                                trailingContent = {
+                                    Switch(
+                                        checked = coachEnabled,
+                                        onCheckedChange = { checked ->
+                                            if (checked) enableCoach() else vm.setCoachEnabled(false)
+                                        }
+                                    )
+                                }
+                            )
+                            Row(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clickable(enabled = coachEnabled) { showCoachTimePicker = true }
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Delivery time",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Text(
+                                    text = formatCoachTime(coachTimeMinutes),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = if (coachEnabled) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            OutlinedButton(
+                                onClick = {
+                                    vm.sendTestCoachNotification()
+                                    scope.launch { snackbar.showSnackbar("Coach notification queued") }
+                                },
+                                enabled = coachEnabled,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp)
+                                    .padding(bottom = 16.dp)
+                            ) { Text("Send test notification") }
                         }
                     }
                 }
@@ -309,7 +414,7 @@ fun SettingsScreen(navController: NavHostController) {
 
             item {
                 Text(
-                    text = "OpenFit v0.2.0 · MIT · Open source, no tracking, no ads.",
+                    text = "OpenFit v0.3.0 · MIT · Open source, no tracking, no ads.",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
@@ -330,7 +435,41 @@ fun SettingsScreen(navController: NavHostController) {
             onDismiss = { confirmImport = false }
         )
     }
+
+    if (showCoachTimePicker) {
+        val timeState = rememberTimePickerState(
+            initialHour = coachTimeMinutes / 60,
+            initialMinute = coachTimeMinutes % 60,
+            is24Hour = true,
+        )
+        AlertDialog(
+            onDismissRequest = { showCoachTimePicker = false },
+            title = { Text("Delivery time") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showCoachTimePicker = false
+                        vm.setCoachTime(timeState.hour * 60 + timeState.minute)
+                    }
+                ) { Text("Save") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCoachTimePicker = false }) { Text("Cancel") }
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    TimePicker(state = timeState)
+                }
+            },
+        )
+    }
 }
+
+private fun formatCoachTime(minutes: Int): String =
+    "${minutes / 60}:${(minutes % 60).toString().padStart(2, '0')}"
 
 @Composable
 private fun GoalRow(label: String, value: String, onValueChange: (String) -> Unit) {

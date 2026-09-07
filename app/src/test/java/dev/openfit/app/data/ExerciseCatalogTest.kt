@@ -33,6 +33,7 @@ class ExerciseCatalogTest {
         val equipment = dtos.map { it.equipment }.toSet()
         assertTrue("catalog should include barbell exercises", "BARBELL" in equipment)
         assertTrue("catalog should include dumbbell exercises", "DUMBBELL" in equipment)
+        assertTrue("catalog should include bodyweight exercises", "BODYWEIGHT" in equipment)
 
         // Assert broad coverage of muscle groups.
         val groups = dtos.map { it.muscleGroup }.toSet()

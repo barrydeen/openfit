@@ -3,9 +3,11 @@ package dev.openfit.app.di
 import android.content.Context
 import dev.openfit.app.coach.AddSetTool
 import dev.openfit.app.coach.CoachTool
+import dev.openfit.app.coach.DailyCoach
 import dev.openfit.app.coach.ExerciseProgressTool
 import dev.openfit.app.coach.LogMealTool
 import dev.openfit.app.coach.NutritionTool
+import dev.openfit.app.coach.PostWorkoutCoach
 import dev.openfit.app.coach.StartWorkoutTool
 import dev.openfit.app.coach.WorkoutTool
 import dev.openfit.app.data.BackupManager
@@ -18,6 +20,7 @@ import dev.openfit.app.data.macro.MacroDatabase
 import dev.openfit.app.data.macro.MacroSettings
 import dev.openfit.app.data.macro.MealRepository
 import dev.openfit.app.llm.ChatClient
+import dev.openfit.app.notify.DailyCoachScheduler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -53,6 +56,12 @@ class AppContainer(context: Context) {
 
     fun chatClient(settings: MacroSettings): ChatClient =
         ChatClient(baseUrl = settings.baseUrl, apiKey = settings.apiKey, model = settings.model)
+
+    val postWorkoutCoach = PostWorkoutCoach(workoutRepository, settingsRepository, ::chatClient)
+
+    val dailyCoach = DailyCoach(workoutRepository, mealRepository, settingsRepository, ::chatClient)
+
+    val dailyCoachScheduler = DailyCoachScheduler(appContext, settingsRepository)
 
     init {
         ExerciseSeeder(applicationScope, appContext, database).seedIfNeeded()

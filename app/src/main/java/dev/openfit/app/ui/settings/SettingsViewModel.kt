@@ -7,6 +7,7 @@ import dev.openfit.app.data.BackupManager
 import dev.openfit.app.data.SettingsRepository
 import dev.openfit.app.data.macro.MacroSettings
 import dev.openfit.app.domain.WeightUnit
+import dev.openfit.app.notify.DailyCoachScheduler
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -14,7 +15,8 @@ import kotlinx.coroutines.launch
 
 class SettingsViewModel(
     private val settings: SettingsRepository,
-    private val backup: BackupManager
+    private val backup: BackupManager,
+    private val coachScheduler: DailyCoachScheduler,
 ) : ViewModel() {
 
     val unit: StateFlow<WeightUnit> =
@@ -28,6 +30,34 @@ class SettingsViewModel(
 
     val dynamicColor: StateFlow<Boolean> =
         settings.dynamicColor.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    val coachEnabled: StateFlow<Boolean> =
+        settings.coachEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    val coachTimeMinutes: StateFlow<Int> =
+        settings.coachTimeMinutes.stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            SettingsRepository.DEFAULT_COACH_TIME_MINUTES,
+        )
+
+    fun setCoachEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settings.setCoachEnabled(enabled)
+            if (enabled) coachScheduler.scheduleNext() else coachScheduler.cancel()
+        }
+    }
+
+    fun setCoachTime(minutes: Int) {
+        viewModelScope.launch {
+            settings.setCoachTimeMinutes(minutes)
+            coachScheduler.scheduleNext()
+        }
+    }
+
+    fun sendTestCoachNotification() {
+        viewModelScope.launch { coachScheduler.runNow() }
+    }
 
     fun setDynamicColor(enabled: Boolean) {
         viewModelScope.launch { settings.setDynamicColor(enabled) }

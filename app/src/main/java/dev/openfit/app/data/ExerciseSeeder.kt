@@ -14,15 +14,16 @@ class ExerciseSeeder(
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
     fun seedIfNeeded() {
-        scope.launch {
-            if (database.exerciseDao().count() > 0) return@launch
-            runCatching { seed() }
-        }
+        scope.launch { runCatching { seed() } }
     }
 
     internal suspend fun seed() {
         val text = context.assets.open(ExerciseCatalog.ASSET).bufferedReader().use { it.readText() }
         val dtos = json.decodeFromString<List<ExerciseCatalogDto>>(text)
-        database.exerciseDao().insertAll(ExerciseCatalog.toEntities(dtos))
+        val existing = database.exerciseDao().getAll().map { it.name.lowercase() }.toSet()
+        val missing = ExerciseCatalog.toEntities(dtos).filter { it.name.lowercase() !in existing }
+        if (missing.isNotEmpty()) {
+            database.exerciseDao().insertAll(missing)
+        }
     }
 }
