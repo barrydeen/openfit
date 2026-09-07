@@ -35,6 +35,11 @@ SQLite), and you can export/import a single backup JSON file when you want to mo
 - **Daily goals** — configurable calorie/protein/carbs/fat targets.
 
 ### Shared
+- **Daily coach notification** — an optional once-a-day phone notification with a message from your
+  AI coach, based on your last 7 days of meals and workouts ("take a rest day", "time to get back to
+  the gym", "time to get back on track"). Scheduled entirely on-device with WorkManager and delivered
+  as a local notification — **no Google services, push servers, or accounts**. Falls back to
+  deterministic rules-based advice when offline or no AI endpoint is configured.
 - **Unified history** — workouts and meals in one timeline.
 - **Units** — store weights canonically in kg, display and enter in either kg or lb.
 - **Local backup** — export/import the full database (workouts + meals) as a JSON file via the
@@ -49,6 +54,10 @@ SQLite), and you can export/import a single backup JSON file when you want to mo
 - **Network access is opt-in and user-coupled.** The app declares `INTERNET` permission **only** to
   call the AI-vision endpoint *you* configure in Settings. Photos and data are sent **only** to that
   endpoint and nowhere else; the workout features work fully offline with zero network calls.
+- **Notifications** — `POST_NOTIFICATIONS` (Android 13+) is requested when you enable the daily coach.
+  Delivery timing uses AndroidX WorkManager (AlarmManager/JobScheduler under the hood), with no
+  Firebase/FCM or other Google services. For reliable timing under aggressive battery
+  optimization, allow OpenFit to run in the background in system settings.
 - **Manual DI**, no heavy frameworks, R8 + resource shrinking for a small, fast APK.
 - **F-Droid-friendly** MIT-licensed build configuration.
 
@@ -76,8 +85,9 @@ The APK lands in `app/build/outputs/apk/`.
 ```
 
 The unit tests cover the e1RM calculators (Epley/Brzycki), unit conversion, progress aggregation,
-exercise catalog parsing, full Room repository behavior for workouts and meals (including the
-placeholder-seeding logic) using Robolectric on the JVM — no emulator required.
+exercise catalog parsing, the daily-coach report/fallback logic and schedule timing, plus full Room
+repository behavior for workouts and meals (including the placeholder-seeding logic) using
+Robolectric on the JVM — no emulator required.
 
 ## Architecture
 
@@ -96,6 +106,8 @@ app/src/main/java/dev/openfit/app/
 ├── OpenFitApplication.kt
 ├── MainActivity.kt
 ├── di/AppContainer.kt
+├── coach/                (AI coach: tools, post-workout feedback, daily digest)
+├── notify/               (notification channel + WorkManager daily scheduling)
 ├── data/                 (repositories, seeder, backup)
 │   ├── local/            (workout Room entities, DAOs, database)
 │   └── macro/            (meal entity, DAO, database, models)
