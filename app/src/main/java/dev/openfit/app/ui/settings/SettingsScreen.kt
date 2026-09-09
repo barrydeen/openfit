@@ -11,24 +11,32 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.SelfImprovement
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedButton
@@ -42,6 +50,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -69,6 +78,7 @@ import dev.openfit.app.domain.WeightUnit
 import dev.openfit.app.ui.appContainer
 import dev.openfit.app.ui.components.ConfirmDialog
 import dev.openfit.app.ui.components.SectionHeader
+import dev.openfit.app.ui.components.ScreenIntro
 import dev.openfit.app.ui.components.TintedIconCircle
 import kotlinx.coroutines.launch
 
@@ -157,26 +167,42 @@ fun SettingsScreen(navController: NavHostController) {
     }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Settings") }) },
+        topBar = {
+            TopAppBar(
+                title = { Text("Settings", style = MaterialTheme.typography.titleMedium) },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
+            )
+        },
         snackbarHost = { SnackbarHost(snackbar) }
     ) { padding ->
         LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            modifier = Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding(),
+            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
+            item {
+                ScreenIntro(
+                    eyebrow = "MAKE IT YOURS",
+                    title = "Your fit, your way.",
+                    subtitle = "A few thoughtful defaults for your daily routine."
+                )
+            }
             item {
                 Column {
                     SectionHeader("Appearance")
-                    Card {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+                    ) {
                         ListItem(
+                            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
                             headlineContent = { Text("Dynamic color") },
-                            supportingContent = {
-                                Text(
-                                    "Use Material You colors from your wallpaper (Android 12+)",
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                            },
                             leadingContent = {
                                 TintedIconCircle(icon = Icons.Filled.Palette)
                             },
@@ -187,23 +213,44 @@ fun SettingsScreen(navController: NavHostController) {
                                 )
                             }
                         )
+                        Text(
+                            "Match your wallpaper on Android 12+. Turn off for OpenFit's signature sage palette.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 20.dp)
+                        )
                     }
                 }
             }
 
             item {
                 Column {
-                    SectionHeader("Units")
-                    Card {
+                    SectionHeader("Training preferences")
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+                    ) {
+                        Column(Modifier.padding(start = 20.dp, top = 20.dp, end = 20.dp)) {
+                            Text("Weight units", style = MaterialTheme.typography.titleMedium)
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                "Used across workouts, history and progress.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                         Row(
-                            Modifier.padding(16.dp).fillMaxWidth(),
+                            Modifier.padding(horizontal = 20.dp, vertical = 12.dp).fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             WeightUnit.entries.forEach { u ->
                                 FilterChip(
                                     selected = u == unit,
                                     onClick = { vm.setUnit(u) },
-                                    label = { Text(u.label) }
+                                    label = { Text(if (u == WeightUnit.KG) "Kilograms (kg)" else "Pounds (lb)") },
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(12.dp)
                                 )
                             }
                         }
@@ -213,9 +260,15 @@ fun SettingsScreen(navController: NavHostController) {
 
             item {
                 Column {
-                    SectionHeader("Rest Timer")
-                    Card {
-                        Column(Modifier.padding(16.dp)) {
+                    SectionHeader("Rest & recovery")
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+                    ) {
+                        Column(Modifier.padding(20.dp)) {
+                            Text("Make room to recover", style = MaterialTheme.typography.titleMedium)
+                            Spacer(Modifier.height(12.dp))
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier.fillMaxWidth()
@@ -228,7 +281,7 @@ fun SettingsScreen(navController: NavHostController) {
                                 )
                                 Text(
                                     text = "$restSeconds s",
-                                    style = MaterialTheme.typography.titleMedium,
+                                    style = MaterialTheme.typography.headlineMedium,
                                     color = MaterialTheme.colorScheme.primary
                                 )
                             }
@@ -253,19 +306,16 @@ fun SettingsScreen(navController: NavHostController) {
 
             item {
                 Column {
-                    SectionHeader("Daily Coach")
-                    Card {
+                    SectionHeader("Daily coach")
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+                    ) {
                         Column {
                             ListItem(
-                                headlineContent = { Text("Daily coach notification") },
-                                supportingContent = {
-                                    Text(
-                                        "One message a day from your AI coach, based on your last 7 days of " +
-                                            "meals and workouts (rest day, get back to the gym, back on track). " +
-                                            "Scheduled on-device with WorkManager - no Google services.",
-                                        style = MaterialTheme.typography.bodySmall
-                                    )
-                                },
+                                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                                headlineContent = { Text("A daily check-in") },
                                 leadingContent = {
                                     TintedIconCircle(icon = Icons.Filled.SelfImprovement)
                                 },
@@ -278,11 +328,19 @@ fun SettingsScreen(navController: NavHostController) {
                                     )
                                 }
                             )
+                            Text(
+                                "One AI coach message based on your last 7 days of meals and workouts.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 16.dp)
+                            )
+                            HorizontalDivider(Modifier.padding(horizontal = 20.dp), color = MaterialTheme.colorScheme.outlineVariant)
                             Row(
                                 Modifier
                                     .fillMaxWidth()
                                     .clickable(enabled = coachEnabled) { showCoachTimePicker = true }
-                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                    .heightIn(min = 56.dp)
+                                    .padding(horizontal = 20.dp, vertical = 12.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
@@ -306,9 +364,15 @@ fun SettingsScreen(navController: NavHostController) {
                                 enabled = coachEnabled,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 16.dp)
-                                    .padding(bottom = 16.dp)
+                                    .padding(horizontal = 20.dp)
+                                    .padding(bottom = 12.dp)
                             ) { Text("Send test notification") }
+                            Text(
+                                "Scheduled on this device. No Google services required.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 20.dp)
+                            )
                         }
                     }
                 }
@@ -316,22 +380,35 @@ fun SettingsScreen(navController: NavHostController) {
 
             item {
                 Column {
-                    SectionHeader("Macro Analysis & Goals")
-                    Card {
-                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    SectionHeader("AI & nutrition")
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+                    ) {
+                        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Text(
-                                text = "AI vision endpoint",
-                                style = MaterialTheme.typography.titleSmall
+                                text = "Connect your AI",
+                                style = MaterialTheme.typography.headlineMedium
+                            )
+                            Text(
+                                "Your connection is used for meal photo analysis and Coach. Save your changes below.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             OutlinedTextField(
                                 value = baseUrl, onValueChange = { baseUrl = it },
                                 label = { Text("Base URL") },
                                 placeholder = { Text("http://…/v1") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                                shape = RoundedCornerShape(12.dp),
                                 singleLine = true, modifier = Modifier.fillMaxWidth(),
                             )
                             OutlinedTextField(
                                 value = apiKey, onValueChange = { apiKey = it },
-                                label = { Text("API Token") },
+                                label = { Text("API token") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                                shape = RoundedCornerShape(12.dp),
                                 singleLine = true, modifier = Modifier.fillMaxWidth(),
                                 visualTransformation = if (showApiKey) VisualTransformation.None else PasswordVisualTransformation(),
                                 trailingIcon = {
@@ -346,12 +423,20 @@ fun SettingsScreen(navController: NavHostController) {
                             OutlinedTextField(
                                 value = model, onValueChange = { model = it },
                                 label = { Text("Model") },
+                                shape = RoundedCornerShape(12.dp),
                                 singleLine = true, modifier = Modifier.fillMaxWidth(),
                             )
                             Spacer(Modifier.height(8.dp))
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                            Spacer(Modifier.height(4.dp))
                             Text(
                                 text = "Daily goals",
-                                style = MaterialTheme.typography.titleSmall
+                                style = MaterialTheme.typography.headlineMedium
+                            )
+                            Text(
+                                "Set the nutrition targets that work for you.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             GoalRow("Calories (kcal)", goalCal) { goalCal = it }
                             GoalRow("Protein (g)", goalProtein) { goalProtein = it }
@@ -373,10 +458,10 @@ fun SettingsScreen(navController: NavHostController) {
                                             ),
                                         )
                                     )
-                                    scope.launch { snackbar.showSnackbar("Macro settings saved") }
+                                    scope.launch { snackbar.showSnackbar("AI and nutrition settings saved") }
                                 },
-                                modifier = Modifier.fillMaxWidth()
-                            ) { Text("Save macro settings") }
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                            ) { Text("Save AI & nutrition settings") }
                             Text(
                                 text = "Photos are only sent to the endpoint you configure above.",
                                 style = MaterialTheme.typography.bodySmall,
@@ -389,11 +474,17 @@ fun SettingsScreen(navController: NavHostController) {
 
             item {
                 Column {
-                    SectionHeader("Data")
-                    Card {
-                        Column(Modifier.padding(16.dp)) {
+                    SectionHeader("Your data")
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+                    ) {
+                        Column(Modifier.padding(20.dp)) {
+                            Text("Keep a copy", style = MaterialTheme.typography.headlineMedium)
+                            Spacer(Modifier.height(8.dp))
                             Text(
-                                text = "Your data is stored only on this device. Export a backup to keep it safe or move it to another device.",
+                                text = "Your journal is stored on this device. Export a backup to keep it safe or take it to another device.",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -407,6 +498,12 @@ fun SettingsScreen(navController: NavHostController) {
                                 onClick = { confirmImport = true },
                                 modifier = Modifier.fillMaxWidth()
                             ) { Text("Import backup") }
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                "Importing replaces the workouts and meals on this device.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
                 }
@@ -477,6 +574,7 @@ private fun GoalRow(label: String, value: String, onValueChange: (String) -> Uni
         value = value,
         onValueChange = onValueChange,
         label = { Text(label) },
+        shape = RoundedCornerShape(12.dp),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         singleLine = true,
         modifier = Modifier.fillMaxWidth(),

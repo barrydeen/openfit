@@ -1,6 +1,8 @@
 package dev.openfit.app.ui.home
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -8,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -21,6 +24,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SupportAgent
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -41,6 +45,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
@@ -50,6 +56,7 @@ import dev.openfit.app.domain.UnitConverter
 import dev.openfit.app.ui.appContainer
 import dev.openfit.app.ui.components.EmptyState
 import dev.openfit.app.ui.components.SectionHeader
+import dev.openfit.app.ui.components.ScreenIntro
 import dev.openfit.app.ui.components.TintedIconCircle
 import dev.openfit.app.ui.navigation.Routes
 import androidx.navigation.NavHostController
@@ -80,7 +87,14 @@ fun HomeScreen(navController: NavHostController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("OpenFit") },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        TintedIconCircle(Icons.Filled.FitnessCenter,
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary)
+                        Text("OpenFit", style = MaterialTheme.typography.titleLarge)
+                    }
+                },
                 actions = {
                     IconButton(onClick = { navController.navigate(Routes.SETTINGS) }) {
                         Icon(Icons.Filled.Settings, contentDescription = "Settings")
@@ -93,12 +107,16 @@ fun HomeScreen(navController: NavHostController) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            contentPadding = PaddingValues(20.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    SectionHeader("Today")
+                    ScreenIntro(
+                        eyebrow = "YOUR DAILY PRACTICE",
+                        title = "A little stronger,\nevery day.",
+                        subtitle = "Make room for movement. Build something that lasts."
+                    )
                     if (activeWorkout != null) {
                         ActiveWorkoutCard(
                             name = activeWorkout!!.name,
@@ -114,16 +132,7 @@ fun HomeScreen(navController: NavHostController) {
                             Text("New Workout")
                         }
                     } else {
-                        Button(
-                            onClick = { showNewWorkout = true },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(56.dp)
-                        ) {
-                            Icon(Icons.Filled.Add, contentDescription = null)
-                            Spacer(Modifier.width(8.dp))
-                            Text("Start Workout", style = MaterialTheme.typography.titleMedium)
-                        }
+                        StartWorkoutCard(onClick = { showNewWorkout = true })
                     }
                 }
             }
@@ -170,6 +179,44 @@ fun HomeScreen(navController: NavHostController) {
 }
 
 @Composable
+private fun StartWorkoutCard(onClick: () -> Unit) {
+    val ornamentColor = MaterialTheme.colorScheme.onPrimary
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary)) {
+        Box(Modifier.fillMaxWidth()) {
+            Canvas(Modifier.matchParentSize()) {
+                // Cropped concentric rings echo the plates on a barbell.
+                val center = Offset(size.width * 1.04f, size.height * 0.18f)
+                repeat(4) { index ->
+                    drawCircle(ornamentColor.copy(alpha = 0.08f),
+                        radius = (52 + index * 26).dp.toPx(), center = center, style = Stroke(1.dp.toPx()))
+                }
+            }
+            Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("THE NEXT REP STARTS HERE", style = MaterialTheme.typography.labelSmall)
+                Text("Your time.\nYour pace.", style = MaterialTheme.typography.headlineLarge)
+                Text("Show up for yourself. We'll keep track.",
+                    style = MaterialTheme.typography.bodyMedium)
+                Spacer(Modifier.height(4.dp))
+                Button(
+                    onClick = onClick,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                ) {
+                    Icon(Icons.Filled.Add, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Start workout")
+                    Spacer(Modifier.weight(1f))
+                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun ShowNewWorkoutConfirm(onConfirm: () -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -189,11 +236,11 @@ private fun CoachCard(onClick: () -> Unit) {
     Card(
         onClick = onClick,
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         )
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(20.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             TintedIconCircle(
@@ -206,19 +253,19 @@ private fun CoachCard(onClick: () -> Unit) {
                 Text(
                     text = "Ask your coach",
                     style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = "Training and nutrition questions, answered from your data",
+                    text = "A fresh perspective on your training and nutrition.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             Spacer(Modifier.width(8.dp))
             Icon(
                 Icons.AutoMirrored.Filled.ArrowForward,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSecondaryContainer
+                tint = MaterialTheme.colorScheme.primary
             )
         }
     }
@@ -232,7 +279,7 @@ private fun ActiveWorkoutCard(name: String, startedAt: Long, onClick: () -> Unit
     ) {
         Column(Modifier.padding(20.dp)) {
             Text(
-                text = "ACTIVE",
+                text = "IN PROGRESS / PICK UP WHERE YOU LEFT OFF",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onPrimaryContainer
             )
@@ -240,7 +287,7 @@ private fun ActiveWorkoutCard(name: String, startedAt: Long, onClick: () -> Unit
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = name,
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.headlineMedium,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                     modifier = Modifier.weight(1f)
                 )
@@ -270,9 +317,10 @@ private fun SessionCard(
     durationText: String,
     onClick: () -> Unit
 ) {
-    Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
+    Card(onClick = onClick, modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(20.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             TintedIconCircle(icon = Icons.Filled.FitnessCenter)
@@ -296,20 +344,15 @@ private fun SessionCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-            }
-            Spacer(Modifier.width(8.dp))
-            Column(horizontalAlignment = Alignment.End) {
+                Spacer(Modifier.height(10.dp))
                 Text(
-                    text = volumeText,
-                    style = MaterialTheme.typography.titleMedium,
+                    text = "$volumeText total volume",
+                    style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary
                 )
-                Text(
-                    text = "volume",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
+            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary)
         }
     }
 }

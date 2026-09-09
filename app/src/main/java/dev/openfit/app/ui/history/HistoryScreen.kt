@@ -20,13 +20,13 @@ import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material3.Card
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -50,14 +50,14 @@ import dev.openfit.app.ui.appContainer
 import dev.openfit.app.ui.components.ConfirmDialog
 import dev.openfit.app.ui.components.EmptyState
 import dev.openfit.app.ui.components.SectionHeader
+import dev.openfit.app.ui.components.ScreenIntro
+import dev.openfit.app.ui.components.StatCard
 import dev.openfit.app.ui.components.TintedIconCircle
-import dev.openfit.app.ui.navigation.Routes
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryScreen(navController: NavHostController) {
     val container = appContainer()
@@ -73,31 +73,48 @@ fun HistoryScreen(navController: NavHostController) {
     var deleteWorkoutId by remember { mutableStateOf<Long?>(null) }
     var deleteMeal by remember { mutableStateOf<MealEntry?>(null) }
 
-    Scaffold(topBar = { TopAppBar(title = { Text("History") }) }) { padding ->
+    Scaffold { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(16.dp),
+            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            item {
+                ScreenIntro(
+                    eyebrow = "YOUR JOURNAL",
+                    title = "History",
+                    subtitle = "The sessions and meals that make up your routine."
+                )
+            }
             if (history.isEmpty() && meals.isEmpty()) {
                 item {
                     EmptyState(
-                        title = "Nothing yet",
-                        subtitle = "Finish a workout or log a meal to see them here.",
+                        title = "Your story starts here",
+                        subtitle = "Complete a workout or log a meal. Every entry is a step worth keeping.",
                         icon = Icons.Filled.History
                     )
                 }
             } else {
+                item {
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        StatCard("Workouts", history.size.toString(), Modifier.weight(1f))
+                        StatCard("Meals logged", meals.size.toString(), Modifier.weight(1f))
+                    }
+                }
                 if (meals.isNotEmpty()) {
-                    item { SectionHeader("Meals") }
+                    item { SectionHeader("Meals", Modifier.padding(top = 12.dp)) }
                     items(meals, key = { "m${it.id}" }) { m ->
                         MealCard(m, onDelete = { deleteMeal = m })
                     }
                 }
                 if (history.isNotEmpty()) {
-                    item { SectionHeader("Completed Sessions") }
+                    item { SectionHeader("Completed sessions", Modifier.padding(top = 12.dp)) }
                     items(history, key = { "w${it.workoutId}" }) { row ->
-                        Card {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(20.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+                        ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth().padding(16.dp),
                                 verticalAlignment = Alignment.CenterVertically
@@ -112,12 +129,6 @@ fun HistoryScreen(navController: NavHostController) {
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
-                                    Spacer(Modifier.height(4.dp))
-                                    Text(
-                                        "${row.exerciseCount} exercises · ${row.setCount} sets · ${UnitConverter.displayWeight(row.totalKg, unit)} ${unit.label}",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
                                 }
                                 Spacer(Modifier.width(8.dp))
                                 IconButton(onClick = { deleteWorkoutId = row.workoutId }) {
@@ -127,6 +138,25 @@ fun HistoryScreen(navController: NavHostController) {
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
+                            }
+                            HorizontalDivider(
+                                modifier = Modifier.padding(horizontal = 16.dp),
+                                color = MaterialTheme.colorScheme.outlineVariant
+                            )
+                            Column(
+                                Modifier.padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    "${row.exerciseCount} exercises · ${row.setCount} sets",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    "${UnitConverter.displayWeight(row.totalKg, unit)} ${unit.label} total volume",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
                             }
                         }
                     }
@@ -162,9 +192,13 @@ fun HistoryScreen(navController: NavHostController) {
 
 @Composable
 private fun MealCard(meal: MealEntry, onDelete: () -> Unit) {
-    Card {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+    ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             val imageFile = if (meal.imagePath.isNotBlank()) File(meal.imagePath) else null
@@ -186,11 +220,11 @@ private fun MealCard(meal: MealEntry, onDelete: () -> Unit) {
                 Text(meal.dish, style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    mealTime(meal.timestamp) + "  •  P ${meal.protein.toInt()}g  C ${meal.carbs.toInt()}g  F ${meal.fat.toInt()}g",
+                    mealTime(meal.timestamp),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Spacer(Modifier.height(2.dp))
+                Spacer(Modifier.height(6.dp))
                 Text(
                     "${meal.calories.toInt()} kcal",
                     style = MaterialTheme.typography.labelLarge,
@@ -204,6 +238,21 @@ private fun MealCard(meal: MealEntry, onDelete: () -> Unit) {
                     contentDescription = "Delete meal",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+        }
+        HorizontalDivider(
+            modifier = Modifier.padding(horizontal = 16.dp),
+            color = MaterialTheme.colorScheme.outlineVariant
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            listOf("Protein" to meal.protein, "Carbs" to meal.carbs, "Fat" to meal.fat).forEach { (label, value) ->
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("${value.toInt()} g", style = MaterialTheme.typography.titleSmall)
+                    Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         }
     }

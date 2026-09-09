@@ -2,14 +2,17 @@ package dev.openfit.app.ui.navigation
 
 import android.app.Application
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -17,6 +20,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -81,10 +85,10 @@ private fun OpenFitAppContent() {
         NavHost(
             navController = navController,
             startDestination = Routes.HOME,
-            modifier = Modifier.padding(padding)
+            modifier = Modifier.padding(padding).consumeWindowInsets(padding)
         ) {
             composable(Routes.HOME) { HomeScreen(navController) }
-            composable(Routes.COACH) { CoachScreen() }
+            composable(Routes.COACH) { CoachScreen(onBack = { navController.popBackStack() }) }
             composable(Routes.MACROS) { MacrosTab(navController, macrosVm) }
             composable(Routes.HISTORY) { HistoryScreen(navController) }
             composable(Routes.PROGRESS) { ProgressScreen(navController) }
@@ -179,7 +183,10 @@ private fun AppBottomBar(currentRoute: String?, navController: NavHostController
         TabItem(Routes.HISTORY, "History", { Icon(Icons.Filled.History, contentDescription = null) }),
         TabItem(Routes.PROGRESS, "Progress", { Icon(Icons.Filled.BarChart, contentDescription = null) })
     )
-    NavigationBar {
+    NavigationBar(
+        containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = 0.dp
+    ) {
         tabs.forEach { tab ->
             NavigationBarItem(
                 selected = currentRoute == tab.route,
@@ -190,7 +197,13 @@ private fun AppBottomBar(currentRoute: String?, navController: NavHostController
                     }
                 },
                 icon = tab.icon,
-                label = { Text(tab.label) }
+                label = { Text(tab.label, style = MaterialTheme.typography.labelSmall) },
+                colors = NavigationBarItemDefaults.colors(
+                    selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    selectedTextColor = MaterialTheme.colorScheme.primary,
+                    indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             )
         }
     }

@@ -18,5 +18,5 @@ object Routes {
     fun pickExercise(workoutId: Long) = "pick_exercise?workoutId=$workoutId"
     fun summary(workoutId: Long) = "summary/$workoutId"
 
-    val tabRoutes = setOf(HOME, COACH, MACROS, HISTORY, PROGRESS, SETTINGS)
+    val tabRoutes = setOf(HOME, MACROS, HISTORY, PROGRESS)
 }

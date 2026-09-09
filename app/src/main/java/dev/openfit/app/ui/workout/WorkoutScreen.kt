@@ -6,15 +6,19 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -29,13 +33,13 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -52,6 +56,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -67,6 +74,7 @@ import dev.openfit.app.domain.UnitConverter
 import dev.openfit.app.ui.appContainer
 import dev.openfit.app.ui.components.ConfirmDialog
 import dev.openfit.app.ui.components.EmptyState
+import dev.openfit.app.ui.components.ScreenIntro
 import dev.openfit.app.ui.components.rememberHaptics
 import dev.openfit.app.ui.navigation.Routes
 
@@ -92,32 +100,42 @@ fun WorkoutScreen(navController: NavHostController, workoutId: Long) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(workout?.workout?.name ?: "Workout") },
+                title = { Text("Your session", style = MaterialTheme.typography.titleMedium) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
-                    TextButton(onClick = { showFinish = true }) { Text("Finish") }
+                    TextButton(onClick = { showFinish = true }, modifier = Modifier.heightIn(min = 48.dp)) { Text("Finish") }
                 }
             )
         }
     ) { padding ->
-        Column(Modifier.padding(padding).fillMaxSize()) {
-            if (restRunning) {
-                RestTimerBar(
-                    remaining = restRemaining,
-                    total = restTotal.toInt(),
-                    onSkip = { vm.skipRest() }
-                )
-            }
-
+        Column(Modifier.padding(padding).consumeWindowInsets(padding).fillMaxSize().imePadding()) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 32.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                if (restRunning) {
+                    item(key = "rest-timer") {
+                        RestTimerBar(
+                            remaining = restRemaining,
+                            total = restTotal.toInt(),
+                            onSkip = { vm.skipRest() }
+                        )
+                    }
+                }
+                workout?.let { session ->
+                    item {
+                        ScreenIntro(
+                            eyebrow = "IN PROGRESS",
+                            title = session.workout.name,
+                            subtitle = "${session.exercises.size} exercises · ${session.exercises.sumOf { entry -> entry.sets.count { it.completedAt != null } }} sets logged"
+                        )
+                    }
+                }
                 if (workout == null) {
                     item { EmptyState("Loading", "Preparing your workout…") }
                 } else if (workout!!.exercises.isEmpty()) {
@@ -156,10 +174,11 @@ fun WorkoutScreen(navController: NavHostController, workoutId: Long) {
     if (showFinish) {
         AlertDialog(
             onDismissRequest = { showFinish = false },
-            title = { Text("Finish workout?") },
+            shape = RoundedCornerShape(20.dp),
+            title = { Text("Finish workout?", style = MaterialTheme.typography.headlineMedium) },
             text = { Text("You're about to end this session. Make sure all your sets are logged.") },
             confirmButton = {
-                Button(onClick = {
+                Button(modifier = Modifier.heightIn(min = 48.dp), onClick = {
                     showFinish = false
                     vm.finishWorkout {
                         navController.navigate(Routes.summary(workoutId)) {
@@ -169,7 +188,7 @@ fun WorkoutScreen(navController: NavHostController, workoutId: Long) {
                 }) { Text("Finish") }
             },
             dismissButton = {
-                TextButton(onClick = { showFinish = false }) { Text("Cancel") }
+                TextButton(onClick = { showFinish = false }, modifier = Modifier.heightIn(min = 48.dp)) { Text("Cancel") }
             }
         )
     }
@@ -213,12 +232,16 @@ private fun RestTimerBar(remaining: Int, total: Int, onSkip: () -> Unit) {
 
     val fraction = if (total > 0) remaining.toFloat() / total else 0f
     val nearEnd = remaining <= 5
-    val accent = if (nearEnd) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+    val accent = MaterialTheme.colorScheme.onPrimaryContainer
 
-    Surface(color = MaterialTheme.colorScheme.primaryContainer) {
-        Column(Modifier.fillMaxWidth()) {
+    Surface(
+        color = MaterialTheme.colorScheme.primaryContainer,
+        shape = RoundedCornerShape(20.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+    ) {
+        Column(Modifier.fillMaxWidth().padding(16.dp)) {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 4.dp),
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
@@ -227,14 +250,21 @@ private fun RestTimerBar(remaining: Int, total: Int, onSkip: () -> Unit) {
                     tint = MaterialTheme.colorScheme.onPrimaryContainer
                 )
                 Spacer(Modifier.width(12.dp))
-                Text(
-                    text = "Rest ${TimeFormatter.countdown(remaining)}",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-                Spacer(Modifier.weight(1f))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        text = if (nearEnd) "GET READY" else "REST & RECOVER",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = accent
+                    )
+                    Text(
+                        text = TimeFormatter.countdown(remaining),
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = accent
+                    )
+                }
                 TextButton(
                     onClick = onSkip,
+                    modifier = Modifier.heightIn(min = 48.dp),
                     colors = ButtonDefaults.textButtonColors(
                         contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                     )
@@ -246,7 +276,7 @@ private fun RestTimerBar(remaining: Int, total: Int, onSkip: () -> Unit) {
             }
             LinearProgressIndicator(
                 progress = { fraction.coerceIn(0f, 1f) },
-                modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp).height(4.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp).height(4.dp),
                 color = accent,
                 trackColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.15f)
             )
@@ -260,7 +290,8 @@ private fun AddExerciseButton(onClick: () -> Unit) {
         onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
-            .height(56.dp)
+            .heightIn(min = 56.dp),
+        shape = RoundedCornerShape(20.dp)
     ) {
         Icon(Icons.Filled.Add, contentDescription = null)
         Spacer(Modifier.width(8.dp))
@@ -279,15 +310,17 @@ private fun ExerciseCard(
     onDeleteSet: (WorkoutSetEntity) -> Unit,
     onRemove: () -> Unit
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+    ) {
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = entry.exercise?.name ?: "Exercise",
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f),
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.weight(1f)
                 )
                 IconButton(onClick = onRemove) {
                     Icon(
@@ -307,7 +340,15 @@ private fun ExerciseCard(
             Spacer(Modifier.height(12.dp))
 
             val sets = entry.sets.sortedBy { it.position }
-            sets.forEachIndexed { index, set ->
+            if (sets.isNotEmpty()) {
+                Text(
+                    "${sets.count { it.completedAt != null }} OF ${sets.size} SETS LOGGED",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(Modifier.height(8.dp))
+            }
+            sets.forEach { set ->
                 if (set.completedAt == null) {
                     DraftSetRow(
                         set = set,
@@ -346,62 +387,53 @@ private fun DraftSetRow(
     onComplete: (Long) -> Unit,
     onDelete: () -> Unit
 ) {
-    var weightText by remember(set.id) { mutableStateOf(UnitConverter.displayWeight(set.weightKg, unit)) }
+    var weightText by remember(set.id, unit) { mutableStateOf(UnitConverter.displayWeight(set.weightKg, unit)) }
     var repsText by remember(set.id) { mutableStateOf(set.reps.toString()) }
     val haptic = rememberHaptics()
 
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            text = "${set.position + 1}",
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.width(20.dp),
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-        )
-        NumberField(
-            value = weightText,
-            onValueChange = { weightText = it },
-            placeholder = unit.label,
-            keyboardType = KeyboardType.Decimal,
-            modifier = Modifier.weight(1f)
-        )
-        Text(
-            "×",
-            modifier = Modifier.padding(horizontal = 6.dp),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        NumberField(
-            value = repsText,
-            onValueChange = { repsText = it },
-            placeholder = "reps",
-            keyboardType = KeyboardType.Number,
-            modifier = Modifier.weight(1f)
-        )
-        Spacer(Modifier.width(8.dp))
-        Surface(
-            onClick = {
-                val w = UnitConverter.parseWeight(weightText, unit) ?: set.weightKg
-                val r = repsText.toIntOrNull() ?: set.reps
-                onUpdate(set.id, w, r)
-                onComplete(set.id)
-                haptic()
-            },
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary,
-            modifier = Modifier.size(44.dp)
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(Icons.Filled.Check, contentDescription = "Log set", modifier = Modifier.size(24.dp))
+    Surface(color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(16.dp)) {
+        Column(Modifier.fillMaxWidth().padding(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "Set ${set.position + 1}",
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.weight(1f)
+                )
+                Button(
+                    onClick = {
+                        val w = UnitConverter.parseWeight(weightText, unit) ?: set.weightKg
+                        val r = repsText.toIntOrNull() ?: set.reps
+                        onUpdate(set.id, w, r)
+                        onComplete(set.id)
+                        haptic()
+                    },
+                    modifier = Modifier.heightIn(min = 48.dp)
+                ) {
+                    Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Log set")
+                }
+                IconButton(onClick = onDelete, modifier = Modifier.size(48.dp)) {
+                    Icon(Icons.Filled.Close, contentDescription = "Discard set", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
-        }
-        IconButton(onClick = onDelete) {
-            Icon(
-                Icons.Filled.Close,
-                contentDescription = "Discard set",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                NumberField(
+                    value = weightText,
+                    onValueChange = { weightText = it },
+                    placeholder = unit.label,
+                    keyboardType = KeyboardType.Decimal,
+                    modifier = Modifier.weight(1f)
+                )
+                NumberField(
+                    value = repsText,
+                    onValueChange = { repsText = it },
+                    placeholder = "reps",
+                    keyboardType = KeyboardType.Number,
+                    modifier = Modifier.weight(1f)
+                )
+            }
         }
     }
 }
@@ -414,26 +446,29 @@ private fun CompletedSetRow(
     onDelete: () -> Unit
 ) {
     val warmup = set.isWarmup
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            text = "${set.position + 1}",
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.width(20.dp),
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-        )
-        Text(
-            text = "${UnitConverter.displayWeight(set.weightKg, unit)} ${unit.label} × ${set.reps}",
-            style = MaterialTheme.typography.bodyLarge,
-            color = if (warmup) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.weight(1f)
-        )
+    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f).padding(end = 8.dp)) {
+            Text(
+                text = "SET ${set.position + 1} · ${if (warmup) "WARM-UP" else "LOGGED"}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = "${UnitConverter.displayWeight(set.weightKg, unit)} ${unit.label} × ${set.reps} reps",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
         Surface(
             onClick = { onToggleWarmup(set.id) },
             shape = CircleShape,
             color = if (warmup) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
             contentColor = if (warmup) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(34.dp)
+            modifier = Modifier.size(48.dp).semantics {
+                contentDescription = "Toggle warm-up for set ${set.position + 1}"
+                stateDescription = if (warmup) "Warm-up set" else "Working set"
+            }
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Text(
@@ -443,7 +478,7 @@ private fun CompletedSetRow(
                 )
             }
         }
-        IconButton(onClick = onDelete) {
+        IconButton(onClick = onDelete, modifier = Modifier.size(48.dp)) {
             Icon(
                 Icons.Filled.Delete,
                 contentDescription = "Delete set",
@@ -460,50 +495,47 @@ private fun AddSetRow(
     defaultReps: Int,
     onAdd: (Double, Int) -> Unit
 ) {
-    var weightText by remember(defaultWeightKg, defaultReps) {
+    var weightText by remember(defaultWeightKg, defaultReps, unit) {
         mutableStateOf(UnitConverter.displayWeight(defaultWeightKg, unit))
     }
     var repsText by remember(defaultWeightKg, defaultReps) {
         mutableStateOf(if (defaultReps > 0) defaultReps.toString() else "")
     }
 
-    Surface(color = MaterialTheme.colorScheme.surfaceContainerHigh, shape = MaterialTheme.shapes.medium) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                Icons.Filled.Add,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary
-            )
-            Spacer(Modifier.width(6.dp))
-            NumberField(
-                value = weightText,
-                onValueChange = { weightText = it },
-                placeholder = unit.label,
-                keyboardType = KeyboardType.Decimal,
-                modifier = Modifier.weight(1f)
-            )
-            Text(
-                "×",
-                modifier = Modifier.padding(horizontal = 6.dp),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            NumberField(
-                value = repsText,
-                onValueChange = { repsText = it },
-                placeholder = "reps",
-                keyboardType = KeyboardType.Number,
-                modifier = Modifier.weight(1f)
-            )
-            Spacer(Modifier.width(8.dp))
-            FilledTonalButton(onClick = {
-                val w = UnitConverter.parseWeight(weightText, unit) ?: defaultWeightKg
-                val r = repsText.toIntOrNull() ?: continueWithReps(defaultReps)
-                onAdd(w, r)
-            }) { Text("Add") }
+    Surface(color = MaterialTheme.colorScheme.surfaceContainer, shape = RoundedCornerShape(16.dp)) {
+        Column(Modifier.fillMaxWidth().padding(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Next set", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                FilledTonalButton(
+                    onClick = {
+                        val w = UnitConverter.parseWeight(weightText, unit) ?: defaultWeightKg
+                        val r = repsText.toIntOrNull() ?: continueWithReps(defaultReps)
+                        onAdd(w, r)
+                    },
+                    modifier = Modifier.heightIn(min = 48.dp)
+                ) {
+                    Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Add set")
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                NumberField(
+                    value = weightText,
+                    onValueChange = { weightText = it },
+                    placeholder = unit.label,
+                    keyboardType = KeyboardType.Decimal,
+                    modifier = Modifier.weight(1f)
+                )
+                NumberField(
+                    value = repsText,
+                    onValueChange = { repsText = it },
+                    placeholder = "reps",
+                    keyboardType = KeyboardType.Number,
+                    modifier = Modifier.weight(1f)
+                )
+            }
         }
     }
 }
@@ -521,10 +553,11 @@ private fun NumberField(
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        modifier = modifier,
+        modifier = modifier.heightIn(min = 56.dp),
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
         singleLine = true,
-        textStyle = MaterialTheme.typography.bodyLarge,
-        placeholder = { Text(placeholder, style = MaterialTheme.typography.bodyMedium) }
+        textStyle = MaterialTheme.typography.titleMedium,
+        shape = RoundedCornerShape(12.dp),
+        label = { Text(if (keyboardType == KeyboardType.Decimal) "Weight ($placeholder)" else "Reps") }
     )
 }
